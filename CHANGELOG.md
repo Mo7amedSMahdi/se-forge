@@ -8,6 +8,8 @@ A project pins an exact version in its `project.json`; `forge upgrade --to <vers
 
 ## [Unreleased]
 
+## [0.2.30] - 2026-10-15
+
 ### Changed
 - `docs/` holds what a user needs: the cheat sheet, the metrics reference, every numbered decision (`docs/decisions.md`) and the system mode plan. The phase records and the audit of the original template are gone.
 
