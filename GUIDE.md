@@ -521,7 +521,7 @@ The full reference, with every field of the timeline: `docs/metrics.md` in the k
 For a system the forge did not build: several backend and frontend repositories, their databases and services
 (Keycloak, MinIO, …). One lead works across all of them; each ticket changes one repository, with that repository's
 own branches, gate and tests. This is the first phase: the workspace and building in it. Reading the whole system
-into documents (`/onboard`) and change requests (`/change`) come next (`docs/phases/system-mode-plan.md`).
+into documents (`/onboard`) and change requests (`/change`) come next (`docs/system-mode-plan.md`).
 
 ```mermaid
 flowchart LR

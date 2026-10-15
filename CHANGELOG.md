@@ -8,6 +8,9 @@ A project pins an exact version in its `project.json`; `forge upgrade --to <vers
 
 ## [Unreleased]
 
+### Changed
+- `docs/` holds what a user needs: the cheat sheet, the metrics reference, every numbered decision (`docs/decisions.md`) and the system mode plan. The phase records and the audit of the original template are gone.
+
 ## [0.2.29] - 2026-10-15
 
 ### Added
@@ -314,7 +317,7 @@ A project pins an exact version in its `project.json`; `forge upgrade --to <vers
 ## [0.1.0] - 2026-10-07
 
 The first version of se-forge, built from a single developer's frontend-only Claude Code template.
-Records: `docs/audit/2026-10-06-phase-1-audit.md` and `docs/phases/`.
+Its decisions: `docs/decisions.md`.
 
 ### Added
 - Policy engine (`core/policy/`, Node.js 22+, no dependencies), wired as Claude Code hooks. It fails closed and parses shell commands, so all 23 bypasses found in the audit are closed.

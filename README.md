@@ -209,7 +209,7 @@ cd ~/code/acme && claude                        # the lead, across every reposit
 Each repository is a local clone: its `origin`, branches, pipelines and deploys stay as they are. Each ticket
 changes one repository, in a worktree the lead opens there (`forge lane open`), under that repository's own gate
 and rules; a merge into a branch that deploys waits for a person. Reading a whole system into documents
-(`/onboard`) and change requests (`/change`) are the next phases ([the plan](docs/phases/system-mode-plan.md)).
+(`/onboard`) and change requests (`/change`) are the next phases ([the plan](docs/system-mode-plan.md)).
 
 ## Commands
 
@@ -328,7 +328,7 @@ core/                 the kit, tool-neutral
   ci/  server/        CI jobs, and server setup checklists for GitHub and GitLab
 adapters/claude/      Claude Code wiring: roles -> agents, commands, the local settings template
 extras/pacing/        the optional status line that records plan usage
-docs/                 the cheat sheet, the metrics reference, the audit with every decision, each phase's record
+docs/                 the cheat sheet, the metrics reference, every decision, the system mode plan
 tests/                unit and integration tests; tests/stacks, tests/ci and tests/starter run real containers;
                       tests/live runs real Claude Code sessions
 ```
@@ -339,8 +339,7 @@ Version 0.2.29 ([CHANGELOG.md](CHANGELOG.md)). Built and tested: the safety laye
 guides, discovery-first bootstrap with the requirements panel, the pipeline with tickets that close on merge and
 follow-ups by priority, mobile apps in Flutter, local containers and CI, architecture records and load tests, the
 starter, the dashboard, per-ticket limits, and the first phase of system mode. Every choice is a numbered decision
-(134 so far) in [the audit](docs/audit/2026-10-06-phase-1-audit.md), and `docs/phases/` records what each phase
-delivered and left open.
+(134 so far) in [docs/decisions.md](docs/decisions.md), which the code and the skills cite.
 
 Next: reading an existing system into documents (`/onboard`) and change requests (`/change`), the whole system
 running locally, staging and production deploys, a limit for a whole build (by date or cost), and several

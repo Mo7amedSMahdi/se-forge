@@ -1,6 +1,6 @@
 # se-forge cheat sheet
 
-One page for the team. Details: the README, the skills (`core/skills/`), and `docs/audit/` for why.
+One page for the team. Details: the README, the skills (`core/skills/`), and `docs/decisions.md` for why.
 
 ## Once per machine
 `npm install -g git+ssh://…/se-forge.git#vX.Y.Z`, clone `se-forge-projects`, then

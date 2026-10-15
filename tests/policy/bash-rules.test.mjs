@@ -1,4 +1,4 @@
-// Every bypass from the phase 1 audit, plus the cases the original guard got right.
+// Every bypass of the original template's guard, plus the cases it got right.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeRepo, ctxFor, decideBash, DEFAULT_TEST_CONFIG } from './helpers.mjs';

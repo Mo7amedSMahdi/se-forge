@@ -87,7 +87,7 @@ The project's `.forge/project/project.json` (a link into the team repo; `$FORGE_
 
 ## Tests
 
-- `npm test`: parser, every rule (all 23 bypasses found in the phase 1 audit among them), file tools, budgets, the done gate, the commit scan, checks after edits, read-only roles, auto-approval, pacing, the git hooks with real commits, the tracker adapters, `forge`, and the entry point end to end. It runs on macOS and Linux (CI: `.gitlab-ci.yml`).
+- `npm test`: parser, every rule (all 23 bypasses of the original template's guard among them), file tools, budgets, the done gate, the commit scan, checks after edits, read-only roles, auto-approval, pacing, the git hooks with real commits, the tracker adapters, `forge`, and the entry point end to end. It runs on macOS and Linux (CI: `.gitlab-ci.yml`).
 - `node tests/live/live-harness.mjs`: real `claude -p` sessions in a throwaway project, including a person's approval or refusal (an MCP stand-in answers the prompt). Manual, about $0.80 per full run.
 
 ## Limits

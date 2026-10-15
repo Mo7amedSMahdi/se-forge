@@ -1,14 +1,13 @@
 # System mode: existing systems and change requests (plan)
 
-Branch `plan/system-mode` (local only). 2026-10-15. Phase S1 is built (branch `phase/s1-system-workspace`,
-decisions 133-134); S2-S4 are still plans.
+2026-10-15. Phase S1 is built (0.2.28, decisions 133-134); S2-S4 are still plans.
 
 Today the kit starts from requirements and builds a new app (`/bootstrap`, then `/pipeline`). This plan adds the
 other half of the work: **an existing system the kit did not build**, made of several repositories, databases and
 services (Keycloak, MinIO, SigNoz, …), which the kit first understands as if it had built it, and then changes
 through **change requests**, at the kit's production standard.
 
-## Decisions (audit section 9)
+## Decisions ([decisions.md](decisions.md))
 - **130 One lead across all repos.** One session plans and builds a whole change request. Its agents work in a
   worktree of whichever repository their ticket changes; gates, tests and merges stay per repository.
 - **131 One board for the system.** Every epic, story and ticket of the system lives in one GitLab project's
