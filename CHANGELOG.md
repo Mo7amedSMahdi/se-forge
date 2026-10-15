@@ -8,6 +8,15 @@ A project pins an exact version in its `project.json`; `forge upgrade --to <vers
 
 ## [Unreleased]
 
+## [0.2.29] - 2026-10-15
+
+### Added
+- The MIT license (`LICENSE`).
+
+### Changed
+- README.md: what se-forge is and how it works, with its flow (and the whole flow from GUIDE.md under it), the agents, skills, safety layer, quality bar and stacks, a quick start for a new app and for an existing system, the commands and the dashboard's tabs.
+- The guide and the examples are ready for a public repository: `gitlab.example.com` stands for your GitLab server and `~/code/se-forge` for the kit's folder; no machine paths or personal names.
+
 ### Removed
 - The local team demo (`demo/`); the live trials keep its users portal workspace (`tests/live/portal.mjs`).
 
