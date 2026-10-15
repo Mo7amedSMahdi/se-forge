@@ -1,0 +1,18 @@
+{
+  "@@locale": "ar",
+  "appTitle": "المستخدمون",
+  "language": "اللغة",
+  "loading": "جارٍ التحميل…",
+  "error": "حدث خطأ. حاول مرة أخرى.",
+  "usersTitle": "المستخدمون",
+  "newUser": "مستخدم جديد",
+  "noUsers": "لا يوجد مستخدمون بعد.",
+  "loadMore": "عرض المزيد",
+  "email": "البريد الإلكتروني",
+  "displayName": "الاسم",
+  "createUser": "إنشاء المستخدم",
+  "errorEmail": "أدخل بريدًا إلكترونيًا صحيحًا",
+  "errorRequired": "مطلوب",
+  "errorTooLong": "طويل جدًا",
+  "errorEmailTaken": "هذا البريد مستخدم من قبل"
+}

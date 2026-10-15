@@ -1,0 +1,64 @@
+{
+  "kind": "backend",
+  "title": "NestJS + MySQL",
+  "backend": "nestjs",
+  "db": "mysql",
+  "service": "api",
+  "image": "api",
+  "guides": [
+    "stack-nestjs",
+    "db-mysql"
+  ],
+  "project": {
+    "stack": {
+      "backend": "NestJS 12 (Node 24)",
+      "database": "MySQL 8.4"
+    },
+    "db": {
+      "image": "mysql:8.4",
+      "migrate": "sh -c 'npm run build && npx typeorm migration:run -d dist/data-source.js'",
+      "rollback": "sh -c 'npm run build && npx typeorm migration:revert -d dist/data-source.js'",
+      "urlEnv": "DATABASE_URL"
+    }
+  },
+  "gate": "npm run build && npm run lint && npx prettier --check \"src/**/*.ts\" \"test/**/*.ts\" && npm test && npm run test:e2e",
+  "tests": {
+    "name": "backend",
+    "code": [
+      "src/**/*.ts"
+    ],
+    "tests": [
+      "src/**/*.spec.ts",
+      "test/**/*.ts"
+    ],
+    "ignore": [
+      "src/migrations/**"
+    ]
+  },
+  "edits": {
+    "format": [
+      {
+        "glob": "{src,test}/**/*.ts",
+        "run": "npx prettier --write {file}"
+      }
+    ],
+    "lint": [
+      {
+        "glob": "{src,test}/**/*.ts",
+        "run": "npx oxlint {file}"
+      }
+    ]
+  },
+  "commit": [
+    {
+      "glob": "**/*.ts",
+      "run": "npx prettier --check {files}"
+    }
+  ],
+  "conformance": {
+    "migration": "printf \"import { MigrationInterface, QueryRunner } from 'typeorm';\\\\n\\\\nexport class Probe1700000000000 implements MigrationInterface {\\\\n  async up(q: QueryRunner): Promise<void> {\\\\n    await q.query('CREATE TABLE probe (id INT PRIMARY KEY)');\\\\n  }\\\\n\\\\n  async down(q: QueryRunner): Promise<void> {\\\\n    await q.query('DROP TABLE probe');\\\\n  }\\\\n}\\\\n\" > src/migrations/1700000000000-Probe.ts && sed -i \"1i import { Probe1700000000000 } from './migrations/1700000000000-Probe.js';\" src/data-source.ts && sed -i \"s/export const migrations: DataSourceOptions\\['migrations'\\] = \\[\\];/export const migrations: DataSourceOptions['migrations'] = [Probe1700000000000];/\" src/data-source.ts && npm run build && npx typeorm migration:run -d dist/data-source.js && npx typeorm migration:revert -d dist/data-source.js && npx typeorm migration:run -d dist/data-source.js",
+    "prodEnv": {
+      "DATABASE_URL": "mysql://app:app@db:3306/app"
+    }
+  }
+}

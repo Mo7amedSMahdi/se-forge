@@ -1,0 +1,4 @@
+.DS_Store
+
+# A maintainer's own files, never part of the kit
+.vscode/

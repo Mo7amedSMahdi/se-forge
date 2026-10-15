@@ -1,0 +1,12 @@
+#!/bin/sh
+# se-forge git hook: the kit's checks first, then the hook the project had before (husky, lefthook,
+# pre-commit or .git/hooks), so installing the kit never switches a project's own hooks off.
+hook="$(basename "$0")"
+dir="$(cd "$(dirname "$0")" && pwd)"
+command -v node >/dev/null 2>&1 || { echo "se-forge: the git hooks need Node 22 or newer." >&2; exit 1; }
+node "$dir/hooks.mjs" "$hook" "$@" || exit $?
+prev="$(git config --get se-forge.previousHooksPath)"
+[ -n "$prev" ] || prev="$(git rev-parse --git-common-dir)/hooks"
+case "$prev" in /*) ;; *) prev="$(git rev-parse --show-toplevel)/$prev" ;; esac
+if [ -x "$prev/$hook" ] && [ "$(cd "$prev" && pwd)" != "$dir" ]; then exec "$prev/$hook" "$@"; fi
+exit 0

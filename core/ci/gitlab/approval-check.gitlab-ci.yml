@@ -1,0 +1,24 @@
+# Fallback for GitLab Free, where approvals cannot be required: on merge requests into staging or
+# main (promotions, a person's; decision 75), this job fails until someone other than the merge
+# request's author has approved it (merge requests into dev are merged by the lead with forge merge).
+# With "Pipelines must succeed" on, the merge request cannot be merged until the job passes; re-run
+# the job after approving.
+# Needs a masked, protected CI/CD variable APPROVAL_CHECK_TOKEN: a project access token with
+# the read_api scope (the job token cannot read approvals).
+approval-check:
+  stage: check
+  image: alpine:3.20
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ /^(staging|main)$/
+  before_script:
+    - apk add --no-cache curl jq >/dev/null
+  script:
+    - |
+      api="$CI_API_V4_URL/projects/$CI_PROJECT_ID/merge_requests/$CI_MERGE_REQUEST_IID"
+      author=$(curl -sf --header "PRIVATE-TOKEN: $APPROVAL_CHECK_TOKEN" "$api" | jq -r '.author.id')
+      approvers=$(curl -sf --header "PRIVATE-TOKEN: $APPROVAL_CHECK_TOKEN" "$api/approvals" | jq -r --arg a "$author" '[.approved_by[].user.id | tostring | select(. != $a)] | length')
+      if [ "${approvers:-0}" -lt 1 ]; then
+        echo "Needs an approval from someone other than the author. Approve the merge request, then re-run this job." >&2
+        exit 1
+      fi
+      echo "Approved by $approvers person(s) other than the author."

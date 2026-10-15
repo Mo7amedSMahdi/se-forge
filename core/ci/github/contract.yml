@@ -1,0 +1,32 @@
+# Contract check for the repo that owns the API spec (decisions 28-32): lint, breaking changes against
+# the newest approved api-v tag, and the version rule; on an api-v tag, the tag must equal info.version.
+# Copy core/ci/contract-check.sh to ci/contract-check.sh and this file to .github/workflows/contract.yml,
+# set SPEC and the paths filter to the spec's folder, and make "contract" a required status check.
+name: contract
+
+on:
+  pull_request:
+    paths: ['api/**']
+  push:
+    tags: ['api-v*']
+
+permissions:
+  contents: read
+
+env:
+  SPEC: api/openapi.yaml
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Contract check
+        env:
+          CI_COMMIT_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+        run: sh ci/contract-check.sh "$SPEC"

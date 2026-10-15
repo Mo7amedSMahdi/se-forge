@@ -1,0 +1,6 @@
+{
+  "app": { "title": "Users", "language": "Language" },
+  "common": { "loading": "Loading…", "error": "Something went wrong. Try again." },
+  "users": { "title": "Users", "new": "New user", "empty": "No users yet.", "more": "Load more", "email": "Email", "displayName": "Name", "create": "Create user" },
+  "errors": { "email": "Enter a valid email address", "required": "Required", "tooLong": "Too long", "emailTaken": "This email is already used" }
+}

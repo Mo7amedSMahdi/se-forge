@@ -1,0 +1,6 @@
+# Languages (decision 107): every string in lib/l10n/app_<lang>.arb, the same keys in each; Arabic is
+# right-to-left. `flutter gen-l10n` (also run by flutter pub get) writes the Dart files next to them.
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-localization-file: app_localizations.dart
+nullable-getter: false

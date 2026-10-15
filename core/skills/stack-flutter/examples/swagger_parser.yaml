@@ -1,0 +1,11 @@
+# The API client (decision 103): `forge api generate` mounts the approved contract at /contract/openapi.yaml
+# and runs this in the dev container. Never edit lib/api/ by hand.
+swagger_parser:
+  schema_path: /contract/openapi.yaml
+  output_directory: lib/api
+  name: users
+  json_serializer: freezed
+  use_freezed3: true
+  root_client: true
+  root_client_name: ApiClient
+  put_clients_in_folder: true

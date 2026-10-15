@@ -1,0 +1,23 @@
+# The Android app (decision 111; skill mobile-release), added by forge new to a project with a mobile app:
+# the app bundle from the Dockerfile's android target, built for linux/amd64 because Google's Android build
+# tools are x86-64 only (a runner on Apple silicon emulates it). On a merge request it is signed with the
+# debug key and only proves the app builds. On a release tag (vX.Y.Z), the protected, masked variables
+# ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD sign it with
+# the upload key, and API_URL names the production API. The bundle is kept for a person to upload to Google
+# Play's internal testing track. Protect the v* tags so only people create them (core/server/gitlab.md).
+android:
+  extends: .docker
+  variables:
+    CONTEXT: "."
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  script:
+    - docker build --platform linux/amd64 --target android -t android "$CONTEXT"
+    - docker run --platform linux/amd64 --name bundle -e ANDROID_KEYSTORE_BASE64 -e ANDROID_KEYSTORE_PASSWORD
+      -e ANDROID_KEY_ALIAS -e ANDROID_KEY_PASSWORD -e API_URL android
+    - mkdir -p out && docker cp bundle:/app/build/app/outputs/bundle/release/app-release.aab out/
+  artifacts:
+    paths:
+      - out/app-release.aab
+    expire_in: 30 days

@@ -1,0 +1,9 @@
+{
+  "@@locale": "en",
+  "appTitle": "{{title}}",
+  "language": "Language",
+  "loading": "Loading…",
+  "error": "Something went wrong. Try again.",
+  "homeTitle": "Welcome",
+  "homeIntro": "This is where the first feature goes."
+}

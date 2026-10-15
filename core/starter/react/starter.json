@@ -1,0 +1,47 @@
+{
+  "kind": "frontend",
+  "title": "React",
+  "frontend": "react",
+  "service": "web",
+  "image": "web",
+  "guides": [
+    "stack-react"
+  ],
+  "project": {
+    "stack": {
+      "frontend": "React + TypeScript (Vite)"
+    }
+  },
+  "gate": "npm run typecheck && npm run lint && npm test",
+  "tests": {
+    "name": "frontend",
+    "code": [
+      "src/**/*.{ts,tsx}"
+    ],
+    "tests": [
+      "src/**/*.test.{ts,tsx}"
+    ],
+    "ignore": [
+      "src/api/schema.d.ts",
+      "src/components/ui/**"
+    ]
+  },
+  "e2e": {
+    "tests": [
+      "e2e/**"
+    ],
+    "command": "docker compose --profile e2e run --rm -T e2e"
+  },
+  "api": {
+    "generate": "npx --yes openapi-typescript@7.13.0 {spec} -o {out}",
+    "out": "src/api/schema.d.ts"
+  },
+  "edits": {
+    "lint": [
+      {
+        "glob": "src/**/*.{ts,tsx}",
+        "run": "npx oxlint {file}"
+      }
+    ]
+  }
+}

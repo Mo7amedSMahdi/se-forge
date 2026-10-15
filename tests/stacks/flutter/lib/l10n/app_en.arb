@@ -1,0 +1,18 @@
+{
+  "@@locale": "en",
+  "appTitle": "Users",
+  "language": "Language",
+  "loading": "Loading…",
+  "error": "Something went wrong. Try again.",
+  "usersTitle": "Users",
+  "newUser": "New user",
+  "noUsers": "No users yet.",
+  "loadMore": "Load more",
+  "email": "Email",
+  "displayName": "Name",
+  "createUser": "Create user",
+  "errorEmail": "Enter a valid email address",
+  "errorRequired": "Required",
+  "errorTooLong": "Too long",
+  "errorEmailTaken": "This email is already used"
+}

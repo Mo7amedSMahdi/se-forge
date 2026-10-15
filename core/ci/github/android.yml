@@ -1,0 +1,44 @@
+  # The Android app (decision 111; skill mobile-release), added by forge new to a project with a mobile app:
+  # the app bundle from the Dockerfile's android target, built for linux/amd64 (Google's Android build tools
+  # are x86-64 only). `android`, on pull requests: signed with the debug key, it only proves the app builds.
+  # `android-release`, on a release tag (vX.Y.Z): the `release` environment's secrets ANDROID_KEYSTORE_BASE64,
+  # ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD sign it with the upload key, and its
+  # variable API_URL names the production API; the bundle is kept for a person to upload to Google Play's
+  # internal testing track (core/server/github.md).
+  android:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      CONTEXT: "."
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the Android image
+        run: docker build --platform linux/amd64 --target android -t android "$CONTEXT"
+      - name: Build the app bundle (debug-signed)
+        run: docker run --rm --platform linux/amd64 android
+
+  android-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: release
+    env:
+      CONTEXT: "."
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the Android image
+        run: docker build --platform linux/amd64 --target android -t android "$CONTEXT"
+      - name: Build the signed app bundle
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          API_URL: ${{ vars.API_URL }}
+        run: |
+          docker run --platform linux/amd64 --name bundle -e ANDROID_KEYSTORE_BASE64 -e ANDROID_KEYSTORE_PASSWORD \
+            -e ANDROID_KEY_ALIAS -e ANDROID_KEY_PASSWORD -e API_URL android
+          mkdir -p out && docker cp bundle:/app/build/app/outputs/bundle/release/app-release.aab out/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: out/app-release.aab

@@ -1,0 +1,64 @@
+# Local development (decisions 71, 72): `docker compose up -d --wait`, then http://localhost:8080.
+# `dotnet watch` applies each saved change, or restarts when it cannot. Tests and the gate run inside the
+# api container:   docker compose run --rm -T --no-deps api sh -c '<gate>'
+# SQL Server has no arm64 image: on Apple Silicon it runs emulated (slower start).
+# Values here are for local development only; .env (git-ignored, see .env.example) overrides them.
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${DB_PASSWORD:-Forge_dev_1}
+    volumes:
+      - db-data:/var/opt/mssql
+    ports:
+      - "127.0.0.1:${DB_PORT:-1433}:1433"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -b -Q 'select 1' -o /dev/null"]
+      interval: 5s
+      timeout: 10s
+      retries: 60
+      start_period: 20s
+
+  api:
+    build:
+      context: .
+      target: dev
+    command: sh -c "dotnet ef database update --project src/Users.Api && exec dotnet watch --project src/Users.Api --non-interactive run --no-launch-profile"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      ConnectionStrings__Default: Server=db;Database=app;User Id=sa;Password=${DB_PASSWORD:-Forge_dev_1};TrustServerCertificate=true
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://0.0.0.0:8080
+      # Testcontainers start sibling containers through the socket and reach them on the host.
+      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - .:/app
+      # The container's own build output per project, never the host's obj/ and bin/.
+      - /app/src/Users.Api/obj
+      - /app/src/Users.Api/bin
+      - /app/tests/Users.Api.Tests/obj
+      - /app/tests/Users.Api.Tests/bin
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "127.0.0.1:${API_PORT:-8080}:8080"
+    # Healthy once the API answers: `up --wait` and dependants wait for it. Probes every second while it
+    # starts, then every 30 s (the dev log stays quiet).
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:8080/v1/users"]
+      start_period: 300s
+      start_interval: 1s
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data:

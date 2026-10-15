@@ -1,0 +1,14 @@
+{
+  "app": {
+    "title": "{{title}}",
+    "language": "Language"
+  },
+  "common": {
+    "loading": "Loading…",
+    "error": "Something went wrong. Try again."
+  },
+  "home": {
+    "title": "Welcome",
+    "intro": "This is where the first feature goes."
+  }
+}

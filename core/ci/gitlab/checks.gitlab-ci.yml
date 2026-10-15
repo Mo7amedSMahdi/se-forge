@@ -1,0 +1,64 @@
+# Required checks for every merge request, and the images (decisions 72-74). Include from .gitlab-ci.yml
+# (or copy), set GATE_COMMAND (and CONTEXT and IMAGE_NAME for a service in a subfolder), and turn on
+# "Pipelines must succeed" so these jobs block merging (core/server/gitlab.md).
+#   secret-scan  gitleaks over the history.
+#   gates        builds the Dockerfile's dev target and runs GATE_COMMAND in it, as developers and agents do
+#                in Compose; Testcontainers reach the Docker-in-Docker service through its socket.
+#   build-image  builds the production image (the Dockerfile's last stage) on every merge request, so a
+#                broken Dockerfile blocks merging; on dev it pushes it to the project's container registry,
+#                tagged with the commit.
+# Runners: the Docker executor with Docker-in-Docker (privileged, a /certs/client volume), as GitLab's docs
+# describe; GitLab.com's hosted Linux runners have it.
+# Several services in one repository: one matrix entry each, e.g.
+#   gates: { parallel: { matrix: [ { CONTEXT: backend, GATE_COMMAND: "..." }, { CONTEXT: frontend, GATE_COMMAND: "..." } ] } }
+#   build-image: { parallel: { matrix: [ { CONTEXT: backend, IMAGE_NAME: api }, { CONTEXT: frontend, IMAGE_NAME: web } ] } }
+stages:
+  - check
+
+variables:
+  # The project's gate command, run inside the dev image. Fails until it is set on purpose.
+  GATE_COMMAND: "echo 'GATE_COMMAND is not set for this project' >&2; exit 1"
+  CONTEXT: "."
+  IMAGE_NAME: "app"
+  # The branch whose images are pushed (decision 73): the base branch.
+  PUSH_BRANCH: "dev"
+  DOCKER_TLS_CERTDIR: "/certs"
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH =~ /^(dev|staging|main)$/
+
+secret-scan:
+  stage: check
+  image:
+    name: ghcr.io/gitleaks/gitleaks:v8.30.1
+    entrypoint: [""]
+  variables:
+    GIT_DEPTH: "0"
+  script:
+    - gitleaks git . --redact --no-banner
+
+.docker:
+  stage: check
+  image: docker:29.8.2-cli
+  services:
+    - docker:29.8.2-dind
+
+gates:
+  extends: .docker
+  script:
+    - docker build --target dev -t gate "$CONTEXT"
+    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock --add-host host.docker.internal:host-gateway
+      -e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal -e CI=true gate sh -c "$GATE_COMMAND"
+
+# (Not "image": that name is a reserved top-level keyword in GitLab CI.)
+build-image:
+  extends: .docker
+  script:
+    - docker build -t "$CI_REGISTRY_IMAGE/$IMAGE_NAME:$CI_COMMIT_SHA" "$CONTEXT"
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "$PUSH_BRANCH" ]; then
+        echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+        docker push "$CI_REGISTRY_IMAGE/$IMAGE_NAME:$CI_COMMIT_SHA"
+      fi

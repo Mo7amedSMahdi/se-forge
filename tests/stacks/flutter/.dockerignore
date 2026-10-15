@@ -1,0 +1,10 @@
+.dart_tool/
+build/
+.idea/
+android/.gradle/
+android/local.properties
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+.flutter-plugins-dependencies

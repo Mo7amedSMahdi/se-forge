@@ -1,0 +1,60 @@
+# Local development (decisions 71, 72): `docker compose up -d --wait`, then http://localhost:8080.
+# The API rebuilds and restarts on every saved change. Tests and the gate run inside the api container:
+#   docker compose run --rm -T --no-deps api sh -c '<gate>'
+# After a dependency change (package.json), refresh the container's node_modules:
+#   docker compose up -d --build --renew-anon-volumes --wait
+# Values here are for local development only; .env (git-ignored, see .env.example) overrides them.
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: app
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app
+    volumes:
+      - db-data:/var/lib/mysql
+    ports:
+      - "127.0.0.1:${DB_PORT:-3306}:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uapp -papp --silent"]
+      interval: 2s
+      timeout: 3s
+      retries: 60
+
+  api:
+    build:
+      context: .
+      target: dev
+    command: sh -c "npm run build && npx typeorm migration:run -d dist/data-source.js && exec npm run start:dev"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-mysql://app:app@db:3306/app}
+      # Testcontainers start sibling containers through the socket and reach them on the host.
+      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - .:/app
+      # The container's own dependencies (Linux builds), never the host's node_modules.
+      - /app/node_modules
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "127.0.0.1:${API_PORT:-8080}:8080"
+    # Healthy once the API answers: `up --wait` and dependants wait for it. Probes every second while it
+    # starts, then every 30 s (the dev log stays quiet).
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:8080/v1/users"]
+      start_period: 180s
+      start_interval: 1s
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data:

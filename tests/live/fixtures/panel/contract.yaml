@@ -1,0 +1,91 @@
+openapi: 3.1.0
+info:
+  title: Team lunch poll API
+  version: 1.0.0
+paths:
+  /polls:
+    post:
+      operationId: createPoll
+      summary: Create a poll (E1-S1)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewPoll'
+      responses:
+        '201':
+          description: Created, with the voters' link and the organiser's secret
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedPoll'
+        '422':
+          description: Invalid poll
+  /polls/{pollId}:
+    get:
+      operationId: getPoll
+      summary: A poll, with its result when closed (E1-S2, E1-S4)
+      parameters:
+        - { name: pollId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: The poll
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Poll'
+        '404':
+          description: No such poll
+  /polls/{pollId}/vote:
+    put:
+      operationId: castVote
+      summary: Cast or change this voter's vote (E1-S2)
+      parameters:
+        - { name: pollId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [optionId]
+              properties:
+                optionId: { type: string }
+      responses:
+        '204':
+          description: Saved
+        '404':
+          description: No such poll
+components:
+  schemas:
+    NewPoll:
+      type: object
+      required: [question, options, closesAt]
+      properties:
+        question: { type: string, maxLength: 200 }
+        options: { type: array, minItems: 2, maxItems: 8, items: { type: string, maxLength: 100 } }
+        closesAt: { type: string, format: date-time }
+    CreatedPoll:
+      type: object
+      required: [pollId, organiserSecret]
+      properties:
+        pollId: { type: string }
+        organiserSecret: { type: string }
+    Poll:
+      type: object
+      required: [pollId, question, options, closesAt, closed]
+      properties:
+        pollId: { type: string }
+        question: { type: string }
+        options:
+          type: array
+          items:
+            type: object
+            required: [optionId, label]
+            properties:
+              optionId: { type: string }
+              label: { type: string }
+              votes: { type: integer }
+        closesAt: { type: string, format: date-time }
+        closed: { type: boolean }

@@ -1,0 +1,9 @@
+{
+  "@@locale": "ar",
+  "appTitle": "{{title}}",
+  "language": "اللغة",
+  "loading": "جارٍ التحميل…",
+  "error": "حدث خطأ. حاول مرة أخرى.",
+  "homeTitle": "مرحبًا",
+  "homeIntro": "هنا تبدأ أول ميزة."
+}

@@ -1,0 +1,41 @@
+# Local development (decisions 71, 72): `docker compose up -d --wait`. MongoDB, and the app container
+# with the migrations applied (migrate-mongo up). Tests and the gate run inside it:
+#   docker compose run --rm -T --no-deps app sh -c '<gate>'
+# Values here are for local development only; .env (git-ignored, see .env.example) overrides them.
+services:
+  db:
+    image: mongo:8.0
+    volumes:
+      - db-data:/data/db
+    ports:
+      - "127.0.0.1:${DB_PORT:-27017}:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  app:
+    build:
+      context: .
+      target: dev
+    command: sh -c "npx migrate-mongo up && exec sleep infinity"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      MONGODB_URL: ${MONGODB_URL:-mongodb://db:27017}
+      MONGODB_DB: ${MONGODB_DB:-app}
+      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data:

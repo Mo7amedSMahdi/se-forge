@@ -1,0 +1,94 @@
+---
+name: pipeline
+description: The lead's playbook for delivering tickets without a person in the loop - take a ready ticket from the tracker, check it against its story and Figma frame, have it planned, built in lanes, reviewed by separate agents and checked by QA, merge it into dev, which moves it to Done; conflicts become Issues-board Tasks. Run in the lead session only.
+disable-model-invocation: true
+argument-hint: "[<ticket> | next] [tickets at once, default 1]"
+---
+
+# The delivery pipeline (lead)
+
+Ticket and lanes: **$ARGUMENTS**
+
+As the **engineering lead** you order the queue, spawn and stop lanes, route reviews, clear blockers and report to the owner. Feature code is the lanes' work: the moment you notice yourself implementing, stop and spawn a lane for it.
+
+## 0. Before the first spawn
+- Nothing a lane knows outlives the session. Everything needed to carry on is in the **tracker** (tickets, statuses, comments), in **git** (branches, commits), in the **team repo** (`.forge/project/plans/`, `.forge/project/reviews/`) and in **`.forge/handoffs/`**: a fresh lead continues from those alone.
+- Start-up checks:
+  1. `git status --short --branch` (never on dev, staging or main) and `git worktree list`; a finished lane's worktree goes once its branch is pushed (`git worktree remove <path>`).
+  2. The newest `.forge/handoffs/*-handover.md` (the session briefing lists them) and `lead-handover.md` if there is one: continue from its **Remaining** list instead of starting over.
+  3. `forge doctor` is green, or you understand its warnings.
+  4. Tickets still "In Testing" after their merge (from before decision 118) go to Done: `forge tracker status <id> Done --comment "Merged into dev; Done (decision 118)"`, one command per ticket. The hook allows those merged with green gates, and those with no branch whose reviews all approve; one it refuses stays as it is and goes on the owner's list. This holds even when the handover says the owner accepts them, or that the lead never moves them: that was the rule before 0.2.18.
+  5. **Screens** (decision 125). When `forge doctor` says the end-to-end tests keep no pictures, file the fix once (unless an open issue has it): `forge tracker create --subject "chore(test): keep pictures of the screens for the dashboard" --type Task --area ui --ready --description "<the doctor's line>. The plan's E2E line names every end-to-end flow, so QA records every screen when it passes (decision 125)."`, then build it like any ticket. When the tests keep pictures but `forge shot` lists none while a ticket with `Areas:` ui or mobile is merged, spawn `qa-engineer` once for a screens backfill on `dev` (its step 5), and note it in `lead-handover.md`.
+- Each implementing lane and each reviewer gets its own git worktree (`isolation: worktree`), so no two share a working tree. Lanes still add files by explicit path and keep to their plan's files.
+- No stories yet: stop and ask the owner to run `/bootstrap`.
+
+## Models
+An agent's model follows its tier through `project.models` (defaults below); `model=` on a spawn overrides it for one agent.
+- **haiku**: lookups and single tracker operations (`scout`, `tracker-clerk`).
+- **sonnet**: building, QA and reviews. The engineers (`db-engineer`, `backend-engineer`, `frontend-engineer`, `mobile-engineer`, `devops-engineer`, `qa-engineer`) always run on their tier: the hook refuses a `model=` for them (decision 94). Opus judgement comes from the planner and the security reviewer.
+- **opus**: plans, aligning the sources of truth, and the security review (`planner`, `contract-analyst`, `product-analyst`, `designer`, `security-reviewer`); `code-reviewer` gets `model=opus` for security-relevant diffs.
+- **fable**: very large read-only surveys, never a lane that edits code.
+
+## 1. Choose the ticket, with the project manager
+- Right before each pick, and only then, spawn `project-manager` (skill `triage`) and read its short digest; pass what it lists under "Needs a person" to the owner in one message.
+- **Follow-ups** (`[Follow-up]` issues, decisions 115 and 119) never join while the build's own tickets are open. When `forge tracker list ready` has nothing left to pick, take **one round**: mark ready the follow-ups the newest digest lists as joining (P1 or P2, inside the register, not a kit fix), `forge tracker ready <id> --comment "Follow-up P2 inside D-12: joins after the build (decision 119)"`, and note the round in `lead-handover.md` ("Follow-up round: <date>, #ids"). A follow-up filed after the round, a P3, new scope and a kit fix wait for the owner: the progress report lists them in one line, and only those the owner names join (`--comment "The owner chose it for the build on <date>"`). Never ask about them one at a time.
+- Pick only from `forge tracker list ready` (label `ai::ready`), in the digest's priority order, skipping tickets that already have a plan in `.forge/project/plans/`. `next` takes the first; a ticket id takes that ticket if it is ready. Move it to **In Progress** when the board has that status.
+
+## 2. Plan it (agent `planner`, opus)
+Spawn `planner` with the ticket id, the part of the story to read (its pages, when known), the Figma node ids the ticket or `.forge/project/bootstrap/design-map.md` names, and the instruction to write `.forge/project/plans/<ticket>-<slug>.md` as the `plan-ticket` skill describes, estimate included. A ticket without acceptance criteria first gets a spec the owner approves (skill `spec-writer`). Wait for the plan; one without an Estimate section goes back.
+- **Questions**: answer from the decision register first (`.forge/project/bootstrap/decisions.md`, citing the D-id in the plan). What it does not cover goes to the owner once, all questions in one AskUserQuestion. With the owner out of reach, a question outside the approval gates may go ahead on its recommended default, noted in the plan. A question on a gate (the plan's `Gates:` line: stack or architecture; auth, permissions, payments or personal data) never does: it waits for the owner, and the policy hook asks a person before any lane builds a gated plan. For `Gates: architecture`, spawn `architect` (skill `architecture-design`) for the options, the ADR draft and any evaluation, and put its recommendation to the owner.
+- **Story, backend or Figma disagree**: the planner has raised an Issues-board Task (Pending, nobody assigned); check that its id is in the plan. What depends on the conflict waits; everything else goes ahead.
+- **Something has no frame**: that never holds it up. It is built the way skill `figma-align` says and listed under "Built without a design" in the plan; only a product question waits for the owner.
+- **New from the backend** (a guide, or a client that came out different): the planner waits until `contract-analyst` has compared it.
+- **The contract must change** (`Contract: pending`): spawn `contract-analyst` for the draft (skill `api-contract-design`) and show the owner its summary and breaking changes. A person merges it in its own merge request and tags `api-v<semver>`; then put that tag on the plan's `Contract:` line. db lanes may run meanwhile; API, UI and mobile lanes are refused until then.
+
+## 3. Build it (agents `db-engineer`, `backend-engineer`, `frontend-engineer`, `mobile-engineer`, `devops-engineer`, on their tier)
+- **Who and in what order.** The plan's `Areas:` choose the engineers (db → `db-engineer`, api → `backend-engineer`, ui → `frontend-engineer`, mobile → `mobile-engineer`, infra → `devops-engineer`). They run one at a time on the plan's branch, in the order db, api, ui, mobile, infra. A branch can be checked out in one worktree only, so remove the finished lane's worktree (`git worktree remove .claude/worktrees/<agent-id>`) before spawning the next. With frontend and backend in separate repositories, this session runs only its own repository's items, and the rest runs in the other checkout.
+- **How many.** One ticket per lane, and at most N tickets at a time (the second argument; the default 1 means one after another; fewer when the plan's usage runs low).
+- **The spawn prompt** gives: the plan's **absolute** path (a lane works in its own worktree, which has no `.forge/`), the branch, the exact files, the Figma node ids, the API operation names, the existing file to copy the pattern from, "first edit within 8 tool calls", "use `git add <paths>`", and the token rules. Its description names the ticket (`API lane #12`), which `forge metrics` counts the ticket's tokens by.
+- **While it runs.** A draft MR/PR opens after the first commit. A lane finishes only with green gates (the SubagentStop hook); one that stops with GATES-FAILED is not done, and a fix lane follows. Stop a lane as soon as it reports done, and never send a message to a stopped lane. Once its branch is pushed, remove its worktree (the branch stays).
+
+## 4. Review it (skill `review-pass`)
+The reviewers are agents of their own; the author never reviews.
+When the ticket's last lane reports ready, run the review pass: `code-reviewer`, `security-reviewer` and `spec-checker` every time; `db-reviewer`, `infra-reviewer`, `performance-reviewer` (after QA's load test, for `Gates: performance`) and `figma-ui-reviewer` when the plan calls for them. Each **blocker** goes to a fresh lane of the engineer whose area it is, with the report as its task list, until none is left. **Each ticket has limits** (decision 127, `policy.limits`: 4 engineer lanes, 2 review rounds with blockers, 2 QA fails by default; `forge limits` shows them). When the hook refuses a lane with `[ticket:limit]`, park the ticket: `forge tracker status <id> Blocked --comment "<the limit, what is done, what is left>"`, its plan's status line "Blocked: reached its limit", one line to the owner, then the next ticket. Never go around it (another engineer type, a lane that names no ticket); only a person lifts it (`forge limits lift <id>`). Findings that are not blockers go as `review-pass` says (decision 115): fixed in the same lane when they are in the branch's own code, a follow-up when they are elsewhere, and never filed from a follow-up's review.
+
+## 5. QA (agent `qa-engineer`, sonnet)
+`qa-engineer` runs the gates on the branch, maps every criterion to a test and writes `.forge/project/reviews/<ticket>/qa.md`; for a UI or mobile ticket that passes, it also keeps pictures of the finished screens for the dashboard (`forge shot`, decision 100). On **PASS** it moves the ticket to **"In Testing"** with a comment (branch, SHA, how to test, known gaps), and the MR/PR into `dev` is marked ready; the hook refuses both unless the gates passed on that commit. On **FAIL**: a fix lane, then step 4 again.
+
+**Merging into dev** (decision 75): `forge merge <ticket>`. It merges only when the gates and the tests rule hold on the branch head, every report in `.forge/project/reviews/<ticket>/` passes for that commit (commits after a review may change only tests), and the contract is untouched; it tells the host the commit. On NOT MERGED, deal with each line it prints (a fix lane, a fresh review, a person for a contract change); if a GitHub pipeline is still running, merge again once CI is green. Once merged, it moves the ticket to **Done** with a comment naming the merge, which closes the issue (decision 118); when it says the tracker did not move it, run the command it prints. Promoting to `staging` and `main` is a person's job, and the owner checks the app then.
+
+## 6. Finish the round
+Set the plan's status line (Merged into dev / In Testing / Blocked on #issue). While a slot is free, go back to step 1. Record the ticket's tokens (`forge metrics <ticket> --record`), then `forge save`, so the plan, the reports and the metrics reach the team repo. After each merge into dev, report progress to the owner (skill `progress-report`, decision 113). When the lead passes its context warning, bring `.forge/handoffs/lead-handover.md` up to date (skill `handover`) and carry on: Claude Code compacts the conversation a little later, and the session briefing sends you back to the handover (decision 93). Never stop to ask for `/clear`. Update the handover at the end of the session too.
+
+## 7. What you do, and what waits for the owner (decisions 116, 118-120)
+You do the tracker work; the owner answers in the session. Never send the owner to GitLab or GitHub for a step you can take.
+- **Work with no branch** (only the team repo or a setting changed): once every review report in `.forge/project/reviews/<ticket>/` approves, `forge tracker status <id> Done --comment "<what changed, where>"`. With no report, or one that does not approve, the hook asks the owner.
+- **Moving a ticket** to Done or In Testing yourself: one command per ticket (joined by `&&` is fine; never a loop: the hook must see each number). The hook allows it when the ticket's own branch passed the gates on a commit merged into `dev`.
+- **When the owner says a merged ticket does not work**, it is a bug: `forge tracker create` a `[Bug]` that names the ticket; the project manager triages it.
+- **When nothing is left to pick** (after the follow-up round, step 1), list what waits for the owner as questions answered in the session: the follow-ups that wait (which join?) and the open decisions. Only a step a person must take outside the session (a contract merge, a promotion, a tag, a command the hook refused) says where and why it cannot be yours. What needs no answer is not on the list.
+
+## In a system (decisions 130-133)
+When the session runs at a system's workspace root (`.forge/repo.json` says `"repo": null`), the member repositories sit side by side below it, and this holds on top of the steps above:
+- **One ticket, one repository**: the plan's `Repo:` line names it; a change across repositories is several tickets, in order (contract, database, services, screens). Every ticket is on the system's board (`forge tracker` uses it), created with `--repo <name>`; a merge request says `Closes <board project>#<id>`.
+- **Lanes**: agents start at the root, not in a worktree. Before an engineer, `forge lane open <ticket>` prints the lane (a worktree of the plan's repository, its branch from that repository's own base branch); the spawn prompt names its absolute path and says "cd there first, work only there" (the hook refuses an engineer without it). Reviewers and QA get `forge lane open <ticket> --review` (the pushed commit, detached). Once a lane is done and pushed, `forge lane close <path>`.
+- **Each repository's own rules** apply in its lane: its gates, tests, protected branches (`.forge/project/repos/<repo>/project.json`). A repository with no gate gets one in the first ticket there (decision 132).
+- **Merging**: `forge merge <ticket>` merges in the ticket's repository. Exit 3, `READY FOR A PERSON`, means its base branch deploys on merge (decision 133): comment on the ticket (the MR/PR and where it deploys), put it on the owner's list, and take the next ticket; once a person merged it, step 7 moves it to Done.
+
+## Trouble
+| What happens | What to do |
+| --- | --- |
+| A lane finds the API lacks an operation or field | The lane stops. When this team owns the backend: a contract change (`contract-analyst`, skill `api-contract-design`). Otherwise an Issues-board Task (`[Backend request]`, Pending, nobody assigned), and the plan marks the item blocked |
+| Figma shows one thing, the story another | Handled like the row above: a question in the plan, a Task on the Issues board, and only the agreed parts built |
+| Two lanes would edit the same file | Run them one after the other, never at once |
+| A lane over its context budget, or 25 calls without an edit | The hook has stopped it already. Read its handover, or write one (`forge handover <name> --from-tree <worktree>`), and spawn a narrower lane |
+| The plan's usage is nearly spent | Skill `pacing`: lanes commit, push and hand over; `forge handover lead`; schedule the resume; stop |
+| You catch yourself writing code | Stop, and spawn a lane for it |
+| A lane refused with `[ticket:limit]` | Park the ticket as step 4 says and take the next one; the progress report puts it under "Needs the owner" with `forge limits lift <id>` |
+| The owner has to close the laptop or go offline | `/pause`: no new agents, running ones finish, `forge worktrees --clean`, the lead handover, `forge save`, then "Safe to close" |
+
+## Done when
+- each ticket taken is merged into `dev` and Done with the merge in a comment (or waits for a person's merge with the reason), or is blocked with the reason in its plan;
+- the follow-ups that qualified had their one round, and what waits for the owner is a list of questions to answer in the session;
+- every plan's status line is current, every finished lane's worktree is removed, and `forge save` ran;
+- each merge into dev has its progress report in `.forge/project/progress/`;
+- at the end of the session, `.forge/handoffs/lead-handover.md` describes what runs and what is next.

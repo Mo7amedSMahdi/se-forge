@@ -1,0 +1,70 @@
+# Required checks for every pull request, and the images (decisions 72-74). Copy to
+# .github/workflows/checks.yml, set GATE_COMMAND (and CONTEXT and IMAGE_NAME for a service in a
+# subfolder), then mark "secret-scan", "gates" and "build-image" as required status checks (core/server/github.md).
+#   secret-scan  gitleaks over the history.
+#   gates        builds the Dockerfile's dev target and runs GATE_COMMAND in it, as developers and agents do
+#                in Compose; Testcontainers reach the runner's Docker through its socket.
+#   build-image  builds the production image (the Dockerfile's last stage) on every pull request, so a
+#                broken Dockerfile blocks merging; on dev it pushes it to GitHub Packages (ghcr.io), tagged
+#                with the commit.
+# Several services in one repository: a matrix over CONTEXT, IMAGE_NAME and GATE_COMMAND in both jobs.
+name: checks
+
+on:
+  pull_request:
+    branches: [dev, staging, main]
+  push:
+    branches: [dev, staging, main]
+
+permissions:
+  contents: read
+
+env:
+  # The project's gate command, run inside the dev image. Fails until it is set on purpose.
+  GATE_COMMAND: "echo 'GATE_COMMAND is not set for this project' >&2; exit 1"
+  CONTEXT: "."
+  IMAGE_NAME: app
+  REGISTRY: ghcr.io
+  # The branch whose images are pushed (decision 73): the base branch.
+  PUSH_BRANCH: dev
+
+jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan the history for secrets
+        run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 git /repo --redact --no-banner
+
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the dev image
+        run: docker build --target dev -t gate "$CONTEXT"
+      - name: Gates in the dev image
+        run: >-
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock --add-host host.docker.internal:host-gateway
+          -e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal -e CI=true gate sh -c "$GATE_COMMAND"
+
+  build-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the production image
+        run: |
+          image="$REGISTRY/$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')/$IMAGE_NAME:$GITHUB_SHA"
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+          docker build -t "$image" "$CONTEXT"
+      - name: Push it (the base branch only)
+        if: github.event_name == 'push' && github.ref_name == env.PUSH_BRANCH
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$TOKEN" | docker login "$REGISTRY" -u "$GITHUB_ACTOR" --password-stdin
+          docker push "$IMAGE"

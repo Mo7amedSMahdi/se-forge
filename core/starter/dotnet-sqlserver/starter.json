@@ -1,0 +1,49 @@
+{
+  "kind": "backend",
+  "title": ".NET + SQL Server",
+  "backend": "dotnet",
+  "db": "sqlserver",
+  "service": "api",
+  "image": "api",
+  "guides": [
+    "stack-dotnet",
+    "db-sqlserver"
+  ],
+  "project": {
+    "stack": {
+      "backend": ".NET 10 (ASP.NET Core minimal APIs)",
+      "database": "SQL Server 2022"
+    },
+    "db": {
+      "image": "mcr.microsoft.com/mssql/server:2022-latest",
+      "migrate": "dotnet ef database update --project src/Api",
+      "rollback": "dotnet ef database update <PreviousMigration> --project src/Api",
+      "urlEnv": "ConnectionStrings__Default"
+    }
+  },
+  "gate": "dotnet format --verify-no-changes && dotnet build -warnaserror && dotnet test",
+  "tests": {
+    "name": "backend",
+    "code": [
+      "src/**/*.cs"
+    ],
+    "tests": [
+      "tests/**/*.cs"
+    ],
+    "ignore": [
+      "**/Migrations/**"
+    ]
+  },
+  "commit": [
+    {
+      "glob": "**/*.cs",
+      "run": "dotnet format --verify-no-changes --include {files}"
+    }
+  ],
+  "conformance": {
+    "migration": "dotnet tool restore && dotnet ef migrations add Probe --project src/Api && dotnet ef database update --project src/Api && dotnet ef database update 0 --project src/Api && dotnet ef database update --project src/Api",
+    "prodEnv": {
+      "ConnectionStrings__Default": "Server=db;Database=app;User Id=sa;Password=Forge_dev_1;TrustServerCertificate=true"
+    }
+  }
+}

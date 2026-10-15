@@ -1,0 +1,24 @@
+# se-forge's own checks: the full test suite on Linux, for merge requests, main and release tags.
+# Runs without network access to Claude or any tracker; tests use local throwaway repos and fakes.
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+test:
+  image: node:22-bookworm-slim
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends git jq ca-certificates > /dev/null
+  script:
+    - node --version
+    - npm test
+
+# A release tag must match VERSION: forge fetches kit versions by tag v<VERSION>.
+tag-matches-version:
+  image: node:22-bookworm-slim
+  rules:
+    - if: $CI_COMMIT_TAG
+  script:
+    - test "$CI_COMMIT_TAG" = "v$(cat VERSION)"

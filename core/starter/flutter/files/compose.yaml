@@ -1,0 +1,34 @@
+# The Flutter app's containers (decisions 101, 109). The API and its database come from the backend's own
+# compose.yaml (in one repository, ../backend; in separate repos, a checkout of the backend next to this
+# one): `docker compose up -d --wait` runs them for the app on a phone simulator or emulator, which
+# `flutter run --dart-define=API_URL=http://localhost:8080` starts on the Mac with hot reload (an Android
+# emulator reaches the Mac at 10.0.2.2). The gate and the integration tests run in containers:
+#   docker compose run --rm -T mobile sh -c 'dart format --output=none --set-exit-if-changed lib test integration_test && flutter analyze --fatal-infos && flutter test'
+#   docker compose --profile e2e run --rm -T integration      (the Linux build, headless, against the API)
+# After a pubspec change: docker compose build mobile integration
+include:
+  - path: {{backend_compose}}
+
+x-flutter: &flutter
+  build:
+    context: .
+    target: dev
+  # An init process: xvfb-run waits for a signal from Xvfb that never reaches a shell running as PID 1.
+  init: true
+  volumes:
+    - .:/app
+    # The container's own package config (Linux paths), never the Mac's.
+    - /app/.dart_tool
+
+services:
+  mobile:
+    <<: *flutter
+    profiles: ["tools"]
+
+  integration:
+    <<: *flutter
+    profiles: ["e2e"]
+    command: ["xvfb-run", "-a", "flutter", "test", "integration_test", "-d", "linux", "--dart-define=API_URL=http://api:8080"]
+    depends_on:
+      api:
+        condition: service_healthy

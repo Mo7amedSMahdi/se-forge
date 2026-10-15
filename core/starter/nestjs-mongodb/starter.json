@@ -1,0 +1,62 @@
+{
+  "kind": "backend",
+  "title": "NestJS + MongoDB",
+  "backend": "nestjs",
+  "db": "mongodb",
+  "service": "api",
+  "image": "api",
+  "guides": [
+    "stack-nestjs",
+    "db-mongodb"
+  ],
+  "project": {
+    "stack": {
+      "backend": "NestJS 12 (Node 24)",
+      "database": "MongoDB 8.0"
+    },
+    "db": {
+      "image": "mongo:8.0",
+      "migrate": "npx migrate-mongo up",
+      "rollback": "npx migrate-mongo down",
+      "urlEnv": "MONGODB_URL"
+    }
+  },
+  "gate": "npm run build && npm run lint && npx prettier --check \"src/**/*.ts\" \"test/**/*.ts\" && npm test && npm run test:e2e",
+  "tests": {
+    "name": "backend",
+    "code": [
+      "src/**/*.ts"
+    ],
+    "tests": [
+      "src/**/*.spec.ts",
+      "test/**/*.ts"
+    ]
+  },
+  "edits": {
+    "format": [
+      {
+        "glob": "{src,test}/**/*.ts",
+        "run": "npx prettier --write {file}"
+      }
+    ],
+    "lint": [
+      {
+        "glob": "{src,test}/**/*.ts",
+        "run": "npx oxlint {file}"
+      }
+    ]
+  },
+  "commit": [
+    {
+      "glob": "**/*.ts",
+      "run": "npx prettier --check {files}"
+    }
+  ],
+  "conformance": {
+    "migration": "printf \"export const up = async (db) => {\\\\n  await db.createCollection('probe');\\\\n};\\\\n\\\\nexport const down = async (db) => {\\\\n  await db.collection('probe').drop();\\\\n};\\\\n\" > migrations/20260101000000-probe.js && npx migrate-mongo up && npx migrate-mongo down && npx migrate-mongo up && npx migrate-mongo status",
+    "prodEnv": {
+      "MONGODB_URL": "mongodb://db:27017",
+      "MONGODB_DB": "app"
+    }
+  }
+}

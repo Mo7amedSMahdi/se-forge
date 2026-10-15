@@ -1,0 +1,24 @@
+# The gate runs `flutter analyze --fatal-infos` (decision 110): any lint fails it.
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+  exclude:
+    - lib/api/**
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - build/**
+    - android/**
+    - ios/**
+    - linux/**
+
+linter:
+  rules:
+    - prefer_single_quotes
+    - always_declare_return_types
+    - avoid_dynamic_calls
+    - unawaited_futures
+    - prefer_final_locals

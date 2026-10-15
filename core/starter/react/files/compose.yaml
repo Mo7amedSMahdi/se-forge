@@ -1,0 +1,53 @@
+# Local development of the whole app (decisions 71, 72): `docker compose up -d --wait`, then
+# http://localhost:5173. The API and its database come from the backend's own compose.yaml (in one
+# repository, ../backend; in separate repos, a checkout of the backend next to this one), so both sides reload on
+# every saved change. Tests and the gate run inside the containers:
+#   docker compose run --rm -T --no-deps web sh -c 'npm run typecheck && npm run lint && npm test'
+#   docker compose --profile e2e run --rm -T e2e      (Playwright on the production build, real API)
+# After a dependency change (package.json): docker compose up -d --build --renew-anon-volumes --wait
+include:
+  - path: {{backend_compose}}
+
+services:
+  web:
+    build:
+      context: .
+      target: dev
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Vite proxies /v1 to the API (vite.config.ts), so the browser talks to one origin.
+      API_URL: http://api:8080
+    volumes:
+      - .:/app
+      # The container's own dependencies (Linux builds), never the host's node_modules.
+      - /app/node_modules
+    ports:
+      - "127.0.0.1:${WEB_PORT:-5173}:5173"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5173/').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      start_period: 120s
+      start_interval: 1s
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      api:
+        condition: service_healthy
+
+  e2e:
+    profiles: ["e2e"]
+    build:
+      context: .
+      target: dev
+    command: ["npx", "playwright", "test"]
+    environment:
+      API_URL: http://api:8080
+      CI: "1"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      api:
+        condition: service_healthy

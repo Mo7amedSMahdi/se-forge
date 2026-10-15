@@ -1,0 +1,12 @@
+# The web image: the built app, and /v1 proxied to the API (API_URL, e.g. http://api:8080).
+:8080 {
+	encode gzip
+	handle /v1/* {
+		reverse_proxy {$API_URL}
+	}
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}
