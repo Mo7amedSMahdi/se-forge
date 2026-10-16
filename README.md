@@ -258,7 +258,7 @@ output; secrets masked), at no token cost. `forge dashboard` turns it into one l
 | Quality | rework after review blockers, and the refusals and failures by role |
 | Screens | the app's screenshots, kept by QA when a UI ticket passes |
 | Run the app | whether it runs now, and the commands to start and stop it |
-| Tickets | every ticket with its tokens, cost, agents, rounds and estimate; its number opens its issue, ▸ opens its agents one by one; in a system, a Repo column and filter |
+| Tickets | every ticket, the unpicked ones too, with its status on the board, tokens, cost, agents, rounds and estimate; its number opens its issue, ▸ opens its agents one by one; in a system, a Repo column and filter |
 
 `--watch` keeps the open page current. After each merge the lead writes a progress report from the same numbers.
 Reference: [docs/metrics.md](docs/metrics.md); how to read it: GUIDE.md, part E.

@@ -463,7 +463,7 @@ in eight tabs:
 | | 12. Friction map | refusals and failures by role: the role or skill to fix, and refusals that should not happen |
 | Screens | | what the app looked like, and when: the screenshots by day, with their ticket and what they show; click one to see it larger |
 | Run the app | | whether the app runs now (the page checks every few seconds), the commands to build, start and stop it with a Copy button each, and its addresses on your Mac |
-| Tickets | | one row per ticket, sortable by any column, its tokens and cost right after its title; click a ticket's number to open its issue in GitLab, and ▸ to see its agents one by one: the job each was given, its model, tokens, cost and time, with the lead's own share last. In a system, a Repo column and a filter by repository |
+| Tickets | | every ticket, the ones nobody has picked yet too, with its status on the board; sortable by any column, its tokens and cost right after its status; click a ticket's number to open its issue in GitLab, and ▸ to see its agents one by one: the job each was given, its model, tokens, cost and time, with the lead's own share last. In a system, a Repo column and a filter by repository |
 
 Hover any bar or segment for its numbers.
 

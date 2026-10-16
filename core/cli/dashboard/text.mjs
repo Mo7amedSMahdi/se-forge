@@ -74,7 +74,7 @@ export function renderText(m, { project }) {
     ? `Forecast: ${fc.remaining} tickets left. At the pace of the ${fc.basis} merged so far, one after the other: done around ${day(fc.doneMid)} (from ${day(fc.doneLo)} to ${day(fc.doneHi)}), about ${fmt(fc.tokensMid)} tokens${money ? ` and ${dollars(fc.costMid)} (${dollars(fc.costLo)}–${dollars(fc.costHi)})` : ''}.`
     : `Forecast: too early, it needs at least 3 merged tickets with a timeline (${timed.filter((t) => t.mergedAt).length} so far).`);
   if (m.data.catalogue.length) {
-    const added = m.all.filter((t) => !t.t);
+    const added = m.every.filter((t) => !t.t);
     out.push(`Scope: ${m.data.catalogue.length} tickets from the bootstrap${added.length ? `; ${added.length} added since (${added.map((t) => t.id).join(' ')})` : ''}.`);
   }
   const iq = m.issues;
@@ -89,7 +89,8 @@ export function renderText(m, { project }) {
 
   const open = m.tickets.filter((t) => t.from !== null && !t.mergedAt);
   out.push('', `Open (${open.length}):`, ...(open.length ? open.map((t) => line(t, money, cut(t.status || '', 160))) : ['- none']));
-  const waiting = m.all.filter((t) => t.from === null && !t.mergedAt && (!m.only || m.only.includes(t.num)));
+  // Every ticket nobody has picked yet: the bootstrap's and the board's (decision 135).
+  const waiting = m.table.filter((t) => t.from === null && !t.mergedAt && !t.board?.closed);
   if (waiting.length) out.push('', `Not started (${waiting.length}): ${waiting.map(name).join(', ')}`);
   const merged = m.tickets.filter((t) => t.mergedAt).sort((a, b) => b.mergedAt - a.mergedAt);
   out.push('', `Merged (${merged.length}), newest first:`, ...(merged.length ? merged.slice(0, MERGED_SHOWN).map((t) => line(t, money, `merged ${when(t.mergedAt)}`)) : ['- none']));

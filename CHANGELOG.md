@@ -8,6 +8,9 @@ A project pins an exact version in its `project.json`; `forge upgrade --to <vers
 
 ## [Unreleased]
 
+### Changed
+- The dashboard's Tickets tab lists every ticket, the ones nobody has picked yet too: the bootstrap's, and the board's issues filed since (follow-ups, bugs; epics left out), with a Status column from the board (`Todo`, `In Progress`, `Done`, `Closed`; from the records when the board has not been read). With `--days`, every ticket still to do stays in the table. `dashboard.csv` has the same rows and a `status` column after `title`, and `forge dashboard --text` lists the board's unpicked tickets under Not started (decision 135).
+
 ## [0.2.30] - 2026-10-15
 
 ### Changed

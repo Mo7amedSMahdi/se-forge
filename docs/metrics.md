@@ -218,11 +218,15 @@ with the backend's), waits until they are healthy and opens the app; `forge app 
 `forge app up --fresh` after a dependency change. Below: each service with its address on this Mac (a database port
 is an address, not a link) and the code the app is built from, with how far the checkout is behind its upstream.
 
-**Tickets:** a sortable table, one row per ticket; a ticket's number opens its issue on GitLab or GitHub (the
+**Tickets:** a sortable table, one row per ticket, every ticket (decision 135): the ones worked on, and the ones
+nobody has picked yet, from the bootstrap and from the board (issues filed since, such as follow-ups; epics left out).
+Its Status is the board's (`Todo`, `In Progress`, `Done`; `Closed` for a closed issue whose label says otherwise), or,
+before the board is read, the records' (Merged, Started, Not started). With `--days`, the tickets worked on or merged
+in those days and every one still to do. A ticket's number opens its issue on GitLab or GitHub (the
 address the tracker gave for it, else one made from the repository's `origin`), and ▸ opens its agents one by one
 (decision 129): each spawned agent with the job its spawn named, its main model, its tokens, cost and time, oldest
 first, and the lead's own turns for the ticket last. The rows add up to the ticket's tokens. `dashboard.csv` has the same rows
-with the tokens per model and per stage.
+with the status, and the tokens per model and per stage.
 
 The KPIs include the Opus share of the cost (or of the tokens) and the time the project waited for you, each
 wait counted once. How the numbers are made:

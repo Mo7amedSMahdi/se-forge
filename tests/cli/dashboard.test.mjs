@@ -379,9 +379,9 @@ test('forge dashboard: one page with twelve charts, the architecture, the screen
   assert.doesNotMatch(html, /<script[^>]+src=|https?:\/\/(?!www\.w3)/, 'no library and no network');
   assert.match(html, /This project has no Compose file yet/, 'no app here: the Run the app tab says so');
   const csv = fs.readFileSync(path.join(w.base, 'out', 'dash.csv'), 'utf8').trim().split('\n');
-  assert.match(csv[0], /^ticket,title,stories,areas,gates,estimate,actual_h,wall_h/);
+  assert.match(csv[0], /^ticket,title,status,stories,areas,gates,estimate,actual_h,wall_h/);
   assert.match(csv[0], /,rework_tokens,plan_tokens,build_tokens,review_tokens,qa_tokens,lead_tokens,other_tokens,merged$/);
-  assert.match(csv[1], /^#10,Data model,E1-S1,db,security,2–4 h,1\.5,0\.82,0\.20,0\.47,0\.05,2,2,1,0,32000,23000,9000,,,12000,0,9000,0,0,23000,0,2026-10-09T08:50:00\.000Z$/, "49 minutes from the first spawn to the merge");
+  assert.match(csv[1], /^#10,Data model,Merged,E1-S1,db,security,2–4 h,1\.5,0\.82,0\.20,0\.47,0\.05,2,2,1,0,32000,23000,9000,,,12000,0,9000,0,0,23000,0,2026-10-09T08:50:00\.000Z$/, "49 minutes from the first spawn to the merge");
   write(path.join(w.folder, 'project.json'), JSON.stringify({ project: { name: 'acme', prices: PRICES }, policy: { gates: { full: 'true' } } }));
   spawnSync('node', [FORGE, 'dashboard', '--offline', '--no-open', '--out', out], { cwd: w.client, encoding: 'utf8' });
   const priced = fs.readFileSync(out, 'utf8');
@@ -544,6 +544,65 @@ test('forge dashboard: issues over time from the tracker, its line in --text, an
   assert.ok(calls.length >= 1);
 });
 
+test('forge dashboard: the Tickets tab lists every ticket, the ones nobody has picked yet too, with its status on the board (decision 135)', () => {
+  const w = world();
+  const bin = path.join(w.base, 'bin');
+  fs.mkdirSync(bin, { recursive: true });
+  fs.copyFileSync(path.join(path.dirname(FORGE), '../../tests/cli/fixtures/issues-glab.js'), path.join(bin, 'glab'));
+  fs.chmodSync(path.join(bin, 'glab'), 0o755);
+  write(path.join(w.base, 'glab.log'), '');
+  write(path.join(w.base, 'issues.json'), JSON.stringify({
+    issues: [
+      { iid: 1, title: '[Epic] E1', state: 'opened', labels: ['type::Epic', 'status::Todo'], created_at: at(0), updated_at: at(0) },
+      { iid: 10, title: 'Data model', state: 'closed', labels: ['status::Done'], created_at: at(1), updated_at: at(60) },
+      { iid: 12, title: 'Book page', state: 'opened', labels: ['status::In Progress'], created_at: at(2), updated_at: at(30) },
+      { iid: 13, title: '[Follow-up] fix(api): refuse an empty name', state: 'opened', labels: ['status::Todo', 'area::api', 'type::Task'], created_at: at(70), updated_at: at(70), web_url: 'https://gitlab.example.com/acme/app/-/issues/13' },
+      { iid: 14, title: 'Duplicate of #13', state: 'closed', labels: ['status::Todo'], created_at: at(71), updated_at: at(72) },
+    ],
+    labels: {}, states: {},
+  }));
+  const env = { ...process.env, CLAUDECODE: '', PATH: `${bin}:${process.env.PATH}`, FAKE_ISSUES: path.join(w.base, 'issues.json'), FAKE_LOG: path.join(w.base, 'glab.log') };
+  const out = path.join(w.base, 'out', 'dash.html');
+  const run = (args) => spawnSync('node', [FORGE, 'dashboard', '--no-open', '--out', out, ...args], { cwd: w.client, encoding: 'utf8', env });
+  const table = () => {
+    const html = fs.readFileSync(out, 'utf8');
+    const tab = html.slice(html.indexOf('id="tab-tickets"'));
+    return { html, tab, rows: [...tab.matchAll(/<tr class="t-row"><td data-v="(\d+)">.*?<\/td><td data-v="[^"]*" class="title"[^>]*>[^<]*<\/td><td data-v="([^"]*)">/g)].map((x) => `#${x[1]} ${x[2]}`) };
+  };
+  // Before the board is read: #12 has a plan but no work yet, and the status comes from the records.
+  let r = run(['--offline']);
+  assert.equal(r.status, 0, r.stderr);
+  let t = table();
+  assert.deepEqual(t.rows, ['#10 Merged', '#11 Merged', '#12 Not started']);
+  assert.match(t.tab, /the board has not been read yet: run forge dashboard without --offline/);
+  // The board read: its status for each ticket, and its issues no record names (a follow-up, a closed duplicate); no epic.
+  r = run([]);
+  assert.equal(r.status, 0, r.stderr);
+  t = table();
+  assert.deepEqual(t.rows, ['#10 Done', '#11 Merged', '#12 In Progress', '#13 Todo', '#14 Closed']);
+  assert.doesNotMatch(t.tab, /the board has not been read yet/);
+  assert.match(t.tab, /<td data-v="13"><a href="https:\/\/gitlab\.example\.com\/acme\/app\/-\/issues\/13" [^>]*>#13<\/a><\/td><td data-v="\[Follow-up\] fix\(api\): refuse an empty name" class="title"/, 'its number opens its issue');
+  assert.match(t.html, / · 5 tickets/, 'the line under the title counts the table');
+  const csv = fs.readFileSync(path.join(w.base, 'out', 'dash.csv'), 'utf8').trim().split('\n');
+  assert.deepEqual(csv.slice(1).map((l) => l.split(',').slice(0, 3).join(',')), ['#10,Data model,Done', '#11,Slots API,Merged', '#12,Book page,In Progress', '#13,[Follow-up] fix(api): refuse an empty name,Todo', '#14,Duplicate of #13,Closed'], 'the same rows in the CSV');
+  assert.match(csv[4], /^#13,\[Follow-up\] fix\(api\): refuse an empty name,Todo,,api,,/, 'its areas from the board');
+  // A ticket begun before its plan is written: the board's title.
+  write(path.join(w.state, 'timeline-2026-10.jsonl'), `${JSON.stringify({ at: at(80), event: 'tool.start', who: 'lead', tool: 'Bash', id: 'b9', what: 'forge tracker get 13', ticket: '#13' })}\n`);
+  r = run(['--offline']);
+  assert.match(fs.readFileSync(path.join(w.base, 'out', 'dash.csv'), 'utf8'), /\n#13,\[Follow-up\] fix\(api\): refuse an empty name,Todo,,api,/);
+  fs.rmSync(path.join(w.state, 'timeline-2026-10.jsonl'));
+  // --days: the tickets worked on or merged in those days, and every one still to do.
+  r = run(['--offline', '--days', '1']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(table().rows, ['#12 In Progress', '#13 Todo']);
+  r = run(['--offline', '--ticket', '13']);
+  assert.deepEqual(table().rows, ['#13 Todo']);
+  // The lead's report names the same tickets nobody has picked yet.
+  r = run(['--offline', '--text']);
+  assert.match(r.stdout, /\nNot started \(2\): #12 Book page, #13 \[Follow-up\] fix\(api\): refuse an empty name\n/);
+  assert.match(r.stdout, /\nScope: 3 tickets from the bootstrap; 2 added since \(#13 #14\)\.\n/);
+});
+
 test('forge dashboard: the Run the app tab has the steps for this project, its addresses and a live check (decision 123)', () => {
   const w = world();
   write(path.join(w.client, 'frontend/compose.yaml'), "name: acme-app\ninclude:\n  - path: ../backend/compose.yaml\nservices:\n  web:\n    image: caddy:2-alpine\n    ports:\n      - \"127.0.0.1:${WEB_PORT:-5173}:80\"\n");
@@ -638,7 +697,7 @@ test('a ticket\'s agents one by one: the job each was given, its model, tokens a
   assert.equal(agentRows(t).reduce((s, x) => s + x.tokens, 0), t.tokens.total);
   assert.match(html, /:scope > tr\.t-row/, 'sorting keeps each ticket\'s agents under it');
   const heads = [...html.matchAll(/<th data-i="\d+">(\w+)<\/th>/g)].map((x) => x[1]);
-  assert.deepEqual(heads.slice(0, 6), ['Ticket', 'Title', 'Tokens', 'Cost', 'Agents', 'Rounds'], 'what people look for first, by the title');
+  assert.deepEqual(heads.slice(0, 7), ['Ticket', 'Title', 'Status', 'Tokens', 'Cost', 'Agents', 'Rounds'], 'what people look for first, by the title');
   const row10 = html.slice(html.indexOf('<td data-v="10">'), html.indexOf('</tr>', html.indexOf('<td data-v="10">')));
   const agentsCell = [...row10.matchAll(/<td data-v="([^"]*)"/g)].map((x) => x[1])[heads.indexOf('Agents')];
   assert.equal(agentsCell, '2', 'the Agents column counts the agents ▸ lists');

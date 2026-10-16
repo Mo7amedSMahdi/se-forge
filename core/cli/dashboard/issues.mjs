@@ -107,6 +107,30 @@ export function band(closed, status) {
 }
 export const isEpic = (i) => i.labels.some((l) => /^type::?epic$/i.test(l)) || /^\[epic\]/i.test(i.title || '');
 
+// An issue's status as the board spells it ("Todo", "In Progress", "Done"); Closed for a closed issue whose label
+// says otherwise; null for an open issue without a status label.
+export function boardStatus(i) {
+  const s = statusOf(i.labels);
+  return i.closed && band(false, s) !== 'closed' ? 'Closed' : s;
+}
+
+// What the board says of a ticket (decision 135): its title, areas and repository from its labels, and its status.
+export function fromBoard(i) {
+  const label = (re) => i.labels.map((l) => re.exec(l)?.[1]).filter(Boolean);
+  return { title: i.title || '', areas: label(/^area::?(.+)$/i).map((a) => a.toLowerCase()), repo: label(/^repo::?(.+)$/i)[0] ?? null, status: boardStatus(i), closed: Boolean(i.closed) };
+}
+
+// An issue no record of the project names yet (filed since the bootstrap and not picked: a follow-up, a bug) as a
+// row of the dashboard's ticket table: what the board says, nothing measured.
+export function issueTicket(i) {
+  const b = fromBoard(i);
+  const num = Number(i.id);
+  return {
+    num, id: `#${num}`, t: null, title: b.title, epic: null, stories: [], areas: b.areas, gates: null, planned: false, status: null, estimate: null,
+    actual: null, mergedAt: null, repo: b.repo, rounds: [], lines: [], from: null, to: null, split: null, tokens: null, rework: null, board: { status: b.status, closed: b.closed },
+  };
+}
+
 // One issue's band from its creation on: [{ at, band }], a point at each change. The state at creation is found by
 // undoing every event from today's labels and state, so labels set before events were recorded still count.
 export function issueBands(i) {

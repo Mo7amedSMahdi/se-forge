@@ -6,7 +6,7 @@ import path from 'node:path';
 import { projectData } from './data.mjs';
 import { ticketSummaries, progress, roles, friction, replies, composition, daily, groupBy, stageOf, projectTimeline, agentRows, agentCount, STAGES, PARTS, WAIT_KINDS } from './measures.mjs';
 import { stackedBars, columns, gantt, burnup, dayStrips, flow, esc } from './svg.mjs';
-import { BANDS, issueFlow, countsText, issueLinks } from './issues.mjs';
+import { BANDS, issueFlow, countsText, issueLinks, isEpic, fromBoard, issueTicket } from './issues.mjs';
 import { git } from '../../policy/lib/context.mjs';
 import { renderArchitecture } from './architecture-view.mjs';
 import { ticketUsage, ticketLimits, reached, teamPaths } from '../../policy/lib/limits.mjs';
@@ -32,8 +32,9 @@ function byFamily(lines, prices, money) {
 }
 
 // Everything the page shows, for the selected days and tickets.
-// issues: what readIssues returned (the tracker's issues with their history), or null. app: what appInfo found
-// (the app's Compose file, services and code), or null. architecture: what architectureModel gathered, or null.
+// issues: what readIssues returned (the tracker's issues with their history; every one but the epics is a row of the
+// ticket table), or null. app: what appInfo found (the app's Compose file, services and code), or null.
+// architecture: what architectureModel gathered, or null.
 // watch: { every } (minutes) when forge dashboard --watch rebuilds the page, which then reloads itself.
 // limits: the project's per-ticket limits (policy.limits, decision 127); each open ticket gets what it used of them.
 // tracker: gitlab or github, for each ticket's link to its issue. repos: a system's member repositories (projectData).
@@ -51,6 +52,21 @@ export function dashboardModel({ main, folder, teamRoot, base, stateDir, prices 
     }
   }
   const picked = all.filter((t) => (!only || only.includes(t.num)) && (t.from !== null || (t.mergedAt && t.mergedAt >= since)));
+  // The ticket table lists every ticket (decision 135): the ones worked on, and the ones nobody has picked yet, from
+  // the bootstrap and from the board (issues filed since, epics left out), each with its status on the board. With
+  // --days: the tickets worked on or merged in those days, and every one still to do.
+  const board = new Map((issues?.issues ?? []).filter((i) => !isEpic(i)).map((i) => [Number(i.id), i]));
+  for (const t of all) {
+    if (!board.has(t.num)) continue;
+    const b = fromBoard(board.get(t.num));
+    t.board = { status: b.status, closed: b.closed };
+    // A ticket begun before its plan is written has only the board's title and areas.
+    t.title ||= b.title;
+    if (!t.areas.length) t.areas = b.areas;
+    t.repo ??= b.repo;
+  }
+  const every = [...all, ...[...board.values()].filter((i) => !all.some((t) => t.num === Number(i.id))).map(issueTicket)].sort((a, b) => a.num - b.num);
+  const table = every.filter((t) => (!only || only.includes(t.num)) && (!days || picked.includes(t) || !(t.mergedAt || t.board?.closed)));
   const lines = only ? data.lines.filter((e) => picked.some((t) => t.id === e.ticket) || (!e.agent && !e.ticket && picked.some((t) => t.from !== null && T(e) >= t.from && T(e) <= t.to))) : data.lines;
   const money = Object.keys(prices).length > 0;
   const merges = all.filter((t) => t.mergedAt).map((t) => ({ at: t.mergedAt, title: `${t.id}${t.title ? ` ${t.title}` : ''} merged ${when(t.mergedAt)}` }));
@@ -58,24 +74,27 @@ export function dashboardModel({ main, folder, teamRoot, base, stateDir, prices 
   const marks = shots.map((s) => ({ at: s.at, href: `#shot-${s.n}`, title: `Screenshot ${clock(s.at)}${s.ticket ? ` · #${s.ticket}` : ''} · ${s.what}` }));
   const tracked = issues ? { ...issueFlow(issues.issues), host: issues.host, readAt: issues.readAt, error: issues.error } : null;
   const link = issueLinks({ issues: issues?.issues ?? [], remote: main ? git(main, ['remote', 'get-url', 'origin']).out : '', tracker });
-  return { data, all, tickets: picked, only, kit, issues: tracked, app, architecture, watch, link, lines, money, prices, now, since, shots, progress: progress(data, all, now), roles: roles(lines, prices), friction: friction(lines), timeline: projectTimeline(lines, { merges, shots: marks }) };
+  return { data, all, tickets: picked, every, table, only, kit, issues: tracked, app, architecture, watch, link, lines, money, prices, now, since, shots, progress: progress(data, all, now), roles: roles(lines, prices), friction: friction(lines), timeline: projectTimeline(lines, { merges, shots: marks }) };
 }
 
-const CSV = ['ticket', 'title', 'stories', 'areas', 'gates', 'estimate', 'actual_h', 'wall_h', 'agents_h', 'waiting_h', 'idle_h', 'agents', 'review_rounds', 'blocker_rounds', 'sent_back', 'tokens', 'opus_tokens', 'sonnet_tokens', 'haiku_tokens', 'cost_usd', 'rework_tokens', ...STAGES.map(([k]) => `${k}_tokens`), 'merged'];
+// A ticket's status: its board's (decision 135), else what the records tell.
+export const statusText = (t) => t.board?.status ?? (t.mergedAt ? 'Merged' : t.from !== null ? 'Started' : 'Not started');
+
+const CSV = ['ticket', 'title', 'status', 'stories', 'areas', 'gates', 'estimate', 'actual_h', 'wall_h', 'agents_h', 'waiting_h', 'idle_h', 'agents', 'review_rounds', 'blocker_rounds', 'sent_back', 'tokens', 'opus_tokens', 'sonnet_tokens', 'haiku_tokens', 'cost_usd', 'rework_tokens', ...STAGES.map(([k]) => `${k}_tokens`), 'merged'];
 const cell = (v) => (v === undefined || v === null ? '' : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
 function rowOf(t) {
   const h1 = (ms) => (ms ? (ms / H).toFixed(2) : '');
   return {
-    ticket: t.id, title: t.title, stories: t.stories.join(' '), areas: t.areas.join(' '), gates: t.gates ?? '', estimate: range(t.estimate), actual_h: t.actual ?? '',
+    ticket: t.id, title: t.title, status: statusText(t), stories: t.stories.join(' '), areas: t.areas.join(' '), gates: t.gates ?? '', estimate: range(t.estimate), actual_h: t.actual ?? '',
     wall_h: h1(t.split?.total), agents_h: h1(t.split?.agents), waiting_h: h1(t.split?.waiting), idle_h: h1(t.split?.idle), agents: t.lines?.length ? agentCount(t) : '',
-    review_rounds: t.rework?.rounds ?? t.rounds.length, blocker_rounds: t.rework?.blockerRounds ?? '', sent_back: t.rework?.sentBack ?? '',
+    review_rounds: t.rework?.rounds ?? (t.rounds.length || ''), blocker_rounds: t.rework?.blockerRounds ?? '', sent_back: t.rework?.sentBack ?? '',
     tokens: t.tokens?.total ?? '', opus_tokens: t.tokens?.byModel?.opus ?? '', sonnet_tokens: t.tokens?.byModel?.sonnet ?? '', haiku_tokens: t.tokens?.byModel?.haiku ?? '',
     cost_usd: t.tokens?.cost ? t.tokens.cost.toFixed(4) : '', rework_tokens: t.rework?.rework.tokens ?? '', merged: t.mergedAt ? new Date(t.mergedAt).toISOString() : '', repo: t.repo ?? '',
     ...Object.fromEntries(STAGES.map(([k]) => [`${k}_tokens`, t.lines?.length ? (groupBy(replies(t.lines), (r) => stageOf(r.who))[k]?.tokens ?? 0) : ''])),
   };
 }
 // A system's table names each ticket's repository last (decision 131).
-export const csv = (m) => { const cols = m.data.repos?.length ? [...CSV, 'repo'] : CSV; return [cols.join(','), ...m.tickets.map((t) => { const r = rowOf(t); return cols.map((c) => cell(r[c])).join(','); })].join('\n'); };
+export const csv = (m) => { const cols = m.data.repos?.length ? [...CSV, 'repo'] : CSV; return [cols.join(','), ...m.table.map((t) => { const r = rowOf(t); return cols.map((c) => cell(r[c])).join(','); })].join('\n'); };
 
 function legend(keys) {
   return `<div class="legend">${keys.map((k) => `<span><i class="${k.cls}"></i>${esc(k.label)}</span>`).join('')}</div>`;
@@ -253,10 +272,10 @@ export function renderPage(m, { project }) {
 <p class="dim">${esc(codeText)} <code>forge app</code> shows what runs now.</p>${mobileText}`;
 
   // The ticket table.
-  // The columns people look for first come first (tokens and cost by the title); the rest scroll sideways.
+  // The columns people look for first come first (status, tokens and cost by the title); the rest scroll sideways.
   // A system's tickets name their repository (decision 131), with a filter above the table.
   const system = m.data.repos?.length > 0;
-  const cols = [['Ticket', (t) => t.num], ['Title', (t) => t.title], ...(system ? [['Repo', (t) => t.repo ?? '']] : []), ['Tokens', (t) => t.tokens?.total ?? ''], ['Cost', (t) => t.tokens?.cost || ''], ['Agents', (t) => (t.lines?.length ? agentCount(t) : '')], ['Rounds', (t) => t.rework?.rounds ?? t.rounds.length], ['Wall', (t) => t.split?.total ?? ''], ['You', (t) => t.split?.waiting ?? ''], ['Estimate', (t) => range(t.estimate)], ['Actual', (t) => (t.actual ?? '')], ['Merged', (t) => t.mergedAt ?? ''], ['Opus', (t) => (t.tokens?.total ? (t.tokens.byModel.opus || 0) / t.tokens.total : '')], ['Stories', (t) => t.stories.join(' ')], ['Areas', (t) => t.areas.join(',')], ['Gates', (t) => t.gates ?? '']];
+  const cols = [['Ticket', (t) => t.num], ['Title', (t) => t.title], ...(system ? [['Repo', (t) => t.repo ?? '']] : []), ['Status', statusText], ['Tokens', (t) => t.tokens?.total ?? ''], ['Cost', (t) => t.tokens?.cost || ''], ['Agents', (t) => (t.lines?.length ? agentCount(t) : '')], ['Rounds', (t) => t.rework?.rounds ?? (t.rounds.length || '')], ['Wall', (t) => t.split?.total ?? ''], ['You', (t) => t.split?.waiting ?? ''], ['Estimate', (t) => range(t.estimate)], ['Actual', (t) => (t.actual ?? '')], ['Merged', (t) => t.mergedAt ?? ''], ['Opus', (t) => (t.tokens?.total ? (t.tokens.byModel.opus || 0) / t.tokens.total : '')], ['Stories', (t) => t.stories.join(' ')], ['Areas', (t) => t.areas.join(',')], ['Gates', (t) => t.gates ?? '']];
   const show = (name, v) => (v === '' ? '' : ['Wall', 'You'].includes(name) ? duration(v) : name === 'Tokens' ? fmt(v) : name === 'Opus' ? pct(v) : name === 'Cost' ? dollars(v) : name === 'Merged' ? day(v) : name === 'Ticket' ? `#${v}` : v);
   // A ticket's number opens its issue on the tracker; ▸ opens its agents one by one, under the row (decision 129).
   const cellHtml = (c, v, t) => { const url = c === 'Ticket' && m.link ? m.link(t.num) : null; return url ? `<a href="${esc(url)}" target="_blank" rel="noopener" title="Open #${esc(t.num)} on the tracker">${esc(show(c, v))}</a>` : esc(show(c, v)); };
@@ -267,7 +286,7 @@ export function renderPage(m, { project }) {
     const body = rows.map((r) => `<tr><td>${esc(r.who)}</td><td>${esc(r.job ?? '')}</td><td>${esc(r.model ?? '')}</td><td class="n">${esc(fmt(r.tokens))}</td>${money ? `<td class="n">${esc(dollars(r.cost))}</td>` : ''}<td class="n">${esc(r.agent ? duration(Math.max(0, r.to - r.from)) : '')}</td><td>${esc(r.agent ? when(r.from) : '')}</td></tr>`).join('');
     return `<table class="agents"><thead><tr>${head.map((h) => `<th>${h}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`;
   };
-  const ticketRows = m.tickets.map((t) => {
+  const ticketRows = m.table.map((t) => {
     const agents = agentTable(t);
     const cells = cols.map(([c, get], i) => { const v = get(t); return `<td data-v="${esc(v)}"${c === 'Title' ? ` class="title" title="${esc(v)}"` : ''}>${i === 0 && agents ? `<button type="button" class="exp" aria-expanded="false" aria-label="Show the agents of #${esc(t.num)}" title="The agents of #${esc(t.num)}, one by one">▸</button>` : ''}${cellHtml(c, v, t)}</td>`; }).join('');
     return `<tr class="t-row"${system ? ` data-repo="${esc(t.repo ?? '')}"` : ''}>${cells}</tr>${agents ? `<tr class="t-agents" hidden><td colspan="${cols.length}">${agents}</td></tr>` : ''}`;
@@ -318,7 +337,7 @@ footer{color:var(--dim);font-size:12px}footer p{margin:4px 0}
 .verb{display:inline-block;min-width:52px;text-align:center;border-radius:4px;padding:1px 6px;font:600 11px ui-monospace,Menlo,monospace;color:#fff;background:var(--dim)}.v-get{background:var(--i-open)}.v-post{background:var(--i-closed)}.v-put,.v-patch{background:var(--i-progress)}.v-delete{background:var(--rework)}
 .status{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:4px 12px;margin:0 0 10px;font-weight:600}.status i{width:9px;height:9px;border-radius:50%;background:var(--idle)}.status.up i{background:var(--i-closed)}.status.down i{background:var(--dim)}
 </style></head><body><main>
-<h1>${esc(project)}</h1><p class="sub">${m.since > 0 ? `Last ${Math.round((m.now - m.since) / (24 * H))} days` : 'Whole project'} · built ${esc(when(m.now))} · ${m.tickets.length} tickets${kitText(m.kit) ? ` · ${esc(kitText(m.kit))}` : ''}${m.watch ? ` · <span id="watch">watching: a new page every ${m.watch.every} min, and this one reloads itself</span>` : ''}</p>
+<h1>${esc(project)}</h1><p class="sub">${m.since > 0 ? `Last ${Math.round((m.now - m.since) / (24 * H))} days` : 'Whole project'} · built ${esc(when(m.now))} · ${m.table.length} tickets${kitText(m.kit) ? ` · ${esc(kitText(m.kit))}` : ''}${m.watch ? ` · <span id="watch">watching: a new page every ${m.watch.every} min, and this one reloads itself</span>` : ''}</p>
 <div class="kpis">${kpis.map(([k, v]) => `<div class="kpi"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</div>
 <nav class="tabs" role="tablist" aria-label="Dashboard sections">${TABS.map(([id, l], i) => `<button type="button" role="tab" id="tab-btn-${id}" aria-controls="tab-${id}" aria-selected="${i === 0}" data-tab="${id}">${esc(l)}${id === 'screens' && m.shots.length ? `<span class="count">${m.shots.length}</span>` : ''}</button>`).join('')}</nav>
 ${panel('overview', `${card(1, 'The project over time', 'Where did the work wait for you? Each day across, in the hours anything happened: the top lane is the AI at work, the bottom lane each wait for you, by kind. Blank in both is nobody working; a triangle is a merge, a camera a screenshot (click it to see it).', legend([...AI, ...kinds, MARK, ...SHOT]) + cDays + kindsText)}
@@ -336,7 +355,7 @@ ${panel('quality', `${card(11, 'Rework', 'What the first blocker costs: everythi
 ${card(12, 'Friction map', 'Where agents hit walls: refusals by rule and failed commands, per role. The colour is the tokens of the replies that made them.', c5)}`)}
 ${panel('screens', `<section class="card"><h2>Screens</h2><p class="q">What the app looked like, and when: the pictures kept with forge shot, oldest first. Click one to see it larger.</p>${cShots}</section>`)}
 ${panel('app', `<section class="card"><h2>Run the app</h2><p class="q">See the app as it is now: build and start its containers on this Mac, then open it.</p>${cApp}</section>`)}
-${panel('tickets', `<section class="card"><h2>Tickets</h2><p class="q">Click a column to sort, a ticket's number to open its issue, and ▸ to see its agents one by one (the job each was given, its model, tokens and time; the lead's own turns last). The same rows are in dashboard.csv next to this page.</p>${table}</section>`)}
+${panel('tickets', `<section class="card"><h2>Tickets</h2><p class="q">Every ticket, the ones nobody has picked yet too, with its status on the board${!m.issues ? ' (no tracker: the status comes from the records)' : !m.issues.readAt ? ' (the board has not been read yet: run forge dashboard without --offline; until then the status comes from the records)' : ''}. Click a column to sort, a ticket's number to open its issue, and ▸ to see its agents one by one (the job each was given, its model, tokens and time; the lead's own turns last). The same rows are in dashboard.csv next to this page.</p>${table}</section>`)}
 <footer>${notes.map((x) => `<p>${esc(x)}</p>`).join('')}</footer>
 </main>
 <script>
