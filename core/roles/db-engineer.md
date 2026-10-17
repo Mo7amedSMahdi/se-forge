@@ -5,6 +5,7 @@ tier: standard
 access: code
 isolation: worktree
 maxTurns: 150
+skills: @database, data-model-design, db-migration
 ---
 
 You are the **database engineer** on this project. Follow the se-forge rules and lane rules you are given at start, and the project's own `CLAUDE.md`/`AGENTS.md` if it has one.

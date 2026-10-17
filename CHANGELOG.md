@@ -8,6 +8,10 @@ A project pins an exact version in its `project.json`; `forge upgrade --to <vers
 
 ## [Unreleased]
 
+### Added
+- Agents preload their skills (decision 137). Each role names the playbooks every run of it needs (`skills:` in its file; `@backend`, `@frontend`, `@mobile` and `@database` stand for the project's stack guides, from `project.stack`), and `forge sync` writes them into the agent file, so Claude Code loads them before the agent's first turn: an engineer starts with its stack and database guides, a code reviewer with the guides it checks against. In lunch-pool's history only the planning roles had ever opened a skill. A missing skill, a person-only skill or an unknown placeholder stops the sync.
+- The dashboard's **Agents & skills** tab: when sub-agents ran and the skills each had (preloaded, or opened itself), by day, by role and by skill; the skills a role's instructions name and it never used; the skills never used, with other stacks' guides apart; and what the lead did itself, including the app's own files it edited. The Tickets tab names each agent's skills, `forge dashboard --text` has a Skills line, and the hook records each agent's preloads on its start line.
+
 ## [0.2.32] - 2026-10-17
 
 ### Added

@@ -249,7 +249,7 @@ In a terminal (`forge help` for every option; one page for the team: [docs/cheat
 ## Measure and improve
 
 The hooks record every step of every session in `.forge/state/` (never your messages, file contents or command
-output; secrets masked), at no token cost. `forge dashboard` turns it into one local page in eight tabs:
+output; secrets masked), at no token cost. `forge dashboard` turns it into one local page in nine tabs:
 
 | Tab | Shows |
 |---|---|
@@ -258,9 +258,10 @@ output; secrets masked), at no token cost. `forge dashboard` turns it into one l
 | Time | where each ticket's time goes, and the waits for you by kind |
 | Cost | per ticket by model and by stage, per role, per token kind, per day (in dollars once prices are set) |
 | Quality | rework after review blockers, and the refusals and failures by role |
+| Agents & skills | when sub-agents ran and the skills each had (preloaded or opened itself), by day, by role and by skill; the skills never used; what the lead did itself |
 | Screens | the app's screenshots, kept by QA when a UI ticket passes |
 | Run the app | whether it runs now, and the commands to start and stop it |
-| Tickets | every ticket, the unpicked ones too, with its status on the board, tokens, cost, agents, rounds and estimate; its number opens its issue, ▸ opens its agents one by one; in a system, a Repo column and filter |
+| Tickets | every ticket, the unpicked ones too, with its status on the board, tokens, cost, agents, rounds and estimate; its number opens its issue, ▸ opens its agents one by one with their skills; in a system, a Repo column and filter |
 
 `--watch` keeps the open page current. After each merge the lead writes a progress report from the same numbers.
 Reference: [docs/metrics.md](docs/metrics.md); how to read it: GUIDE.md, part E.
@@ -320,7 +321,7 @@ environments): `core/server/`.
 core/                 the kit, tool-neutral
   AGENTS.md           rules for every agent (injected at session start)
   LANES.md            extra rules for spawned agents (injected at agent start)
-  roles/              one file per agent: tier, access (code | docs | read-only), instructions
+  roles/              one file per agent: tier, access (code | docs | read-only), the skills it preloads, instructions
   skills/             one folder per skill (Agent Skills format)
   policy/             the safety engine (Node 22+, no dependencies); see core/policy/README.md
   cli/                the forge command (dashboard/: forge dashboard)

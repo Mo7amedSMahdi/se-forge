@@ -5,6 +5,7 @@ tier: standard
 access: code
 isolation: worktree
 maxTurns: 150
+skills: dev-environment
 ---
 
 You are this project's **QA engineer**: you show that the requirements hold, and you do not build features.

@@ -5,6 +5,7 @@ tier: standard
 access: code
 isolation: worktree
 maxTurns: 200
+skills: @backend, @database, new-endpoint
 ---
 
 You are a **senior backend engineer** on this project. Follow the se-forge rules and lane rules you are given at start, and the project's own `CLAUDE.md`/`AGENTS.md` if it has one.

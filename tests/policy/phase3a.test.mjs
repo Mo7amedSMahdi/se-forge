@@ -2,6 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { makeRepo, ctxFor, writeProjectConfig } from './helpers.mjs';
@@ -101,6 +102,36 @@ test('every command can run: no command shadowed by a skill, none invoking a per
     assert.ok(!skills.has(name), `${f} is shadowed by the skill ${name}`);
     for (const s of personOnly) assert.doesNotMatch(text, new RegExp(`\\b${s}\\b\` skill`), `${f} invokes the person-only skill ${s}`);
   }
+});
+
+// Decision 137: agents preload the playbooks their role names, and the project's stack picks the guides.
+test('agents preload their skills: the stack picks the guides, and every preloaded skill is one Claude may start', () => {
+  const { files, preloads } = renderClaude({ kitRoot: ROOT, stack: ['NestJS 11', 'React 19 + TypeScript (Vite)', 'MongoDB 7'] });
+  assert.match(files.get('.claude/agents/backend-engineer.md'), /maxTurns: 200\nskills:\n  - stack-nestjs\n  - db-mongodb\n  - new-endpoint\n---\n/);
+  assert.deepEqual(preloads['code-reviewer'], ['stack-nestjs', 'stack-react', 'db-mongodb']);
+  assert.deepEqual(preloads['frontend-engineer'].slice(0, 2), ['stack-react', 'api-sync']);
+  assert.ok(!preloads['mobile-engineer'].includes('stack-flutter'), 'no Flutter in this stack');
+  for (const r of ['backend-engineer', 'frontend-engineer', 'devops-engineer', 'code-reviewer', 'security-reviewer', 'spec-checker', 'qa-engineer']) assert.ok(preloads[r].length, `${r} preloads its skills`);
+  // Without a stack the guides drop out and the rest stays; a role with nothing left gets no skills: line.
+  const bare = renderClaude({ kitRoot: ROOT });
+  assert.deepEqual(bare.preloads['backend-engineer'], ['new-endpoint']);
+  assert.doesNotMatch(bare.files.get('.claude/agents/code-reviewer.md').split('\n---\n')[0], /skills:/);
+  // A system's repositories add their stacks: both backends' guides.
+  assert.deepEqual(renderClaude({ kitRoot: ROOT, stack: ['NestJS 11, PostgreSQL 16', 'FastAPI 0.115 with MinIO'] }).preloads['backend-engineer'], ['stack-nestjs', 'stack-fastapi', 'db-postgresql', 'new-endpoint']);
+});
+
+test('a role that preloads a missing skill, a person-only skill or an unknown placeholder stops forge sync', () => {
+  const kit = fs.mkdtempSync(path.join(os.tmpdir(), 'kit-'));
+  const role = (skills) => `---\nname: x-engineer\ndescription: An engineer for the test.\ntier: standard\naccess: code\nskills: ${skills}\n---\nBody.\n`;
+  const skill = (name, extra = '') => { fs.mkdirSync(path.join(kit, 'core/skills', name), { recursive: true }); fs.writeFileSync(path.join(kit, 'core/skills', name, 'SKILL.md'), `---\nname: ${name}\ndescription: d\n${extra}---\n`); };
+  fs.mkdirSync(path.join(kit, 'core/roles'), { recursive: true });
+  skill('good');
+  skill('person-only', 'disable-model-invocation: true\n');
+  const render = (skills) => { fs.writeFileSync(path.join(kit, 'core/roles/x-engineer.md'), role(skills)); return renderClaude({ kitRoot: kit }); };
+  assert.deepEqual(render('good').preloads['x-engineer'], ['good']);
+  assert.throws(() => render('good, missing'), /skills names missing, which is not a skill/);
+  assert.throws(() => render('person-only'), /only a person starts/);
+  assert.throws(() => render('@backnd'), /@backnd is not one of @backend, @frontend, @mobile, @database/);
 });
 
 test('the policy\'s role lists match the access level declared in every role file', () => {

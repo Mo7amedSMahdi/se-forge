@@ -8,6 +8,7 @@
 // - The timeline (decisions 96-98), with the history import; the gate results and the lanes that stopped
 //   with failing gates (.forge/state/gates.json and gates-failed.json).
 // - The pictures of the app in the team repo folder's shots/ (forge shot, decision 100).
+// - The agents and skills forge sync rendered into the checkout's .claude/ (decision 137).
 // Nothing here calls a server.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -132,6 +133,24 @@ export function readGatesFailed(stateDir) {
 
 // Everything, one record per ticket number found anywhere. repos: a system's member repositories
 // ([{ name, dir, base, stateDir }]), whose merges and failed lanes count too; null for one repository.
+// The project's agents and skills as forge sync rendered them (decision 137): every skill in .claude/skills/, the skills
+// each agent preloads (its file's skills: list), and the skills its instructions name (`stack-nestjs` and the like).
+export function readAgentFiles(main) {
+  const list = (d) => { try { return fs.readdirSync(d, { withFileTypes: true }); } catch { return []; } };
+  const skills = list(path.join(main || '', '.claude', 'skills')).filter((e) => e.isDirectory() && fs.existsSync(path.join(main, '.claude', 'skills', e.name, 'SKILL.md'))).map((e) => e.name).sort();
+  const known = new Set(skills);
+  const preloads = {};
+  const named = {};
+  for (const e of list(path.join(main || '', '.claude', 'agents')).filter((x) => x.name.endsWith('.md'))) {
+    const text = read(path.join(main, '.claude', 'agents', e.name));
+    const front = /^---\n([\s\S]*?)\n---\n?/.exec(text);
+    const name = /^name:\s*(\S+)/m.exec(front?.[1] ?? '')?.[1] ?? e.name.replace(/\.md$/, '');
+    preloads[name] = (/^skills:[ \t]*\n((?:[ \t]+-[^\n]*(?:\n|$))+)/m.exec(front?.[1] ?? '')?.[1] ?? '').split('\n').map((l) => l.replace(/^\s*-\s*/, '').trim()).filter(Boolean);
+    named[name] = [...new Set([...text.slice(front ? front[0].length : 0).matchAll(/`([a-z0-9-]+)`/g)].map((x) => x[1]).filter((x) => known.has(x)))];
+  }
+  return { skills, preloads, named };
+}
+
 export function projectData({ main, folder, teamRoot, base, stateDir, repos = null }) {
   const { epics, stories } = readStories(folder);
   const catalogue = readCatalogue(folder);

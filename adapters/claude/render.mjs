@@ -7,6 +7,7 @@
 //   kit/commands/<name>.md     a slash command, replaces or adds a command
 import fs from 'node:fs';
 import path from 'node:path';
+import { stackGuides, resolveSkills } from '../../core/policy/lib/stack.mjs';
 
 // A role's tier picks its model. project.models (project.json) changes the mapping per project; the
 // aliases haiku, sonnet and opus always mean the newest model of their family.
@@ -29,11 +30,13 @@ export function parseRole(text, file) {
 
 // isolation: false for a system's workspace root (decision 130): Claude Code keeps a worktree-isolated agent's git
 // inside its own worktree, so an agent there works in the member repository's worktree forge gives it instead.
-function claudeAgent({ fields, body }, models, isolation = true) {
+// skills: the playbooks Claude Code loads into the agent's context before its first turn (decision 137).
+function claudeAgent({ fields, body }, models, isolation = true, skills = []) {
   const fm = ['---', `name: ${fields.name}`, `description: ${fields.description}`, `model: ${models[fields.tier]}`];
   if (DISALLOWED[fields.access]) fm.push(`disallowedTools: ${DISALLOWED[fields.access]}`);
   if (fields.isolation === 'worktree' && isolation) fm.push('isolation: worktree');
   if (fields.maxTurns) fm.push(`maxTurns: ${fields.maxTurns}`);
+  if (skills.length) fm.push('skills:', ...skills.map((s) => `  - ${s}`));
   fm.push('---', HEADER);
   return `${fm.join('\n')}\n${body}`;
 }
@@ -49,26 +52,37 @@ function walk(dir, base = dir, out = []) {
   return out;
 }
 
-// Returns Map<checkout-relative path, content> plus the role access levels for the policy.
-export function renderClaude({ kitRoot, overrides = null, models = {}, isolation = true }) {
+// Returns Map<checkout-relative path, content> plus the role access levels for the policy and each role's preloaded
+// skills. stack: the project's stack in its own words (project.stack, and a system's repositories), which picks the
+// guides a role's @backend, @frontend, @mobile and @database stand for (decision 137).
+export function renderClaude({ kitRoot, overrides = null, models = {}, isolation = true, stack = [] }) {
   for (const [tier, model] of Object.entries(models)) {
     if (!(tier in MODEL) || typeof model !== 'string' || !/^[\w.:[\]-]+$/.test(model)) throw new Error(`models.${tier}: "${model}" is not a tier (fast, standard, deep) with a model name`);
   }
   const tierModels = { ...MODEL, ...models };
   const files = new Map();
+  const skills = new Map();
+  for (const dir of [path.join(kitRoot, 'core/skills'), overrides && path.join(overrides, 'skills')].filter(Boolean)) {
+    for (const e of listDir(dir)) if (e.isDirectory()) skills.set(e.name, path.join(dir, e.name));
+  }
+  const guides = stackGuides(stack);
   const roles = new Map();
   for (const dir of [path.join(kitRoot, 'core/roles'), overrides && path.join(overrides, 'roles')].filter(Boolean)) {
     for (const e of listDir(dir)) if (e.name.endsWith('.md')) roles.set(e.name, path.join(dir, e.name));
   }
   const access = {};
+  const preloads = {};
   for (const [name, file] of [...roles].sort()) {
     const role = parseRole(fs.readFileSync(file, 'utf8'), file);
     access[role.fields.name] = role.fields.access;
-    files.set(`.claude/agents/${name}`, claudeAgent(role, tierModels, isolation));
-  }
-  const skills = new Map();
-  for (const dir of [path.join(kitRoot, 'core/skills'), overrides && path.join(overrides, 'skills')].filter(Boolean)) {
-    for (const e of listDir(dir)) if (e.isDirectory()) skills.set(e.name, path.join(dir, e.name));
+    // A preloaded skill must exist and be one Claude may start: Claude Code skips the others without a word.
+    const list = resolveSkills(role.fields.skills, guides);
+    for (const s of list) {
+      if (!skills.has(s)) throw new Error(`${file}: skills names ${s}, which is not a skill`);
+      if (/^disable-model-invocation: true$/m.test(fs.readFileSync(path.join(skills.get(s), 'SKILL.md'), 'utf8'))) throw new Error(`${file}: skills names ${s}, which only a person starts (disable-model-invocation), so it cannot be preloaded`);
+    }
+    preloads[role.fields.name] = list;
+    files.set(`.claude/agents/${name}`, claudeAgent(role, tierModels, isolation, list));
   }
   for (const [name, dir] of [...skills].sort()) {
     if (!fs.existsSync(path.join(dir, 'SKILL.md'))) throw new Error(`${dir}: missing SKILL.md`);
@@ -79,5 +93,5 @@ export function renderClaude({ kitRoot, overrides = null, models = {}, isolation
     for (const e of listDir(dir)) if (e.name.endsWith('.md')) commands.set(e.name, path.join(dir, e.name));
   }
   for (const [name, file] of [...commands].sort()) files.set(`.claude/commands/${name}`, fs.readFileSync(file, 'utf8'));
-  return { files, access };
+  return { files, access, preloads };
 }

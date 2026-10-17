@@ -155,7 +155,7 @@ joins the timeline with the bootstrap's stories and tickets, the plans, `metrics
 team repo's history and the merges into `dev`; the one server it calls is the tracker's, for the issues chart
 (`--offline` skips it and draws from the last read). The cost charts show dollars once
 `project.prices` is set, tokens until then. The KPIs stay on top; the charts, the app's screenshots and the table
-are in eight tabs, and the page remembers the open tab in its address (`dashboard.html#cost`).
+are in nine tabs, and the page remembers the open tab in its address (`dashboard.html#cost`).
 
 The page is a snapshot of the moment it was built (the line under the title says when). With `--watch` (decision
 126) forge makes a new one every few minutes and writes a small stamp next to it (`dashboard.stamp.js`, the build's
@@ -187,6 +187,19 @@ work in 38.6 hours from the first line to the last, beside 13 h 07 min waiting f
 **Quality**
 11. **Rework:** the first pass against everything after the first review round with a blocker; review rounds and gate send-backs.
 12. **Friction map:** refusals by rule and failed commands, by role; the colour is the tokens of the replies that made them. Below: the most frequent refusal reasons, word for word.
+
+**Agents & skills** (decision 137): when sub-agents ran, and the skills each had to work from. A skill is **preloaded**
+when the agent's start line names it (its agent file's `skills:` list, which Claude Code loads before the agent's first
+turn; recorded from 0.2.33) and **opened** when an agent or the lead loaded it itself (a Skill call, or a read of its
+`SKILL.md`).
+13. **Sub-agents and skills, day by day:** each day's agents, with a skill or with none, and the skills opened and
+    preloaded. Below: how many agents had a skill, and what the lead did itself: its calls, the sub-agents it started,
+    the skills it opened, and the app's own files it edited (a path in the checkout outside `.forge/`), which is work a
+    lane should do.
+14. **Roles and their skills:** per role, its agents, how many had a skill, the skills preloaded and opened, and the
+    skills its instructions name that no agent of it used (another stack's guides left out).
+15. **Skills:** each skill used, how often opened and preloaded, by which roles, on which tickets and when last; then
+    the skills never used, and apart the guides for stacks this project does not use (from `project.stack`).
 
 **Screens:** the pictures kept with `forge shot`, by day, oldest first, each with its time, ticket, what it shows,
 branch and commit; click one to see it larger. They are inside the page, so it stays one file that opens anywhere.
@@ -224,7 +237,7 @@ Its Status is the board's (`Todo`, `In Progress`, `Done`; `Closed` for a closed 
 before the board is read, the records' (Merged, Started, Not started). With `--days`, the tickets worked on or merged
 in those days and every one still to do. A ticket's number opens its issue on GitLab or GitHub (the
 address the tracker gave for it, else one made from the repository's `origin`), and ▸ opens its agents one by one
-(decision 129): each spawned agent with the job its spawn named, its main model, its tokens, cost and time, oldest
+(decision 129): each spawned agent with the job its spawn named, its main model, its skills (preloaded, then opened), its tokens, cost and time, oldest
 first, and the lead's own turns for the ticket last. The rows add up to the ticket's tokens. `dashboard.csv` has the same rows
 with the status, and the tokens per model and per stage.
 

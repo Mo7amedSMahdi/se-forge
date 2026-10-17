@@ -282,6 +282,86 @@ export function roles(lines, prices = {}) {
   return list.map((x) => { run += v(x); return { ...x, share: all ? v(x) / all : 0, running: all ? run / all : 0 }; });
 }
 
+// Decision 137: when sub-agents ran and what each had to work from. A skill is preloaded when the agent's start line
+// names it (its agent file's skills: list, recorded from se-forge 0.2.33), and loaded when the agent or the lead
+// opened it: a Skill call, or a read of its SKILL.md.
+const SKILL_FILE = /(?:^|\/)skills\/([\w-]+)\/SKILL\.md$/;
+const SPAWNS = new Set(['Agent', 'Task']);
+const EDITS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
+const inc = (map, k, n = 1) => map.set(k, (map.get(k) || 0) + n);
+export function skillOf(e) {
+  if (e.event !== 'tool.start') return null;
+  if (e.tool === 'Skill') return e.what ? String(e.what).trim().split(/\s/)[0] : null;
+  if (e.tool === 'Read') return SKILL_FILE.exec(String(e.what || ''))?.[1] ?? null;
+  return null;
+}
+const dayOf = (t) => { const d = new Date(t); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
+
+// files: what readAgentFiles found (every skill, each role's preloads and the skills its instructions name).
+// otherGuides: the stack guides this project does not use, left out of "named but never used" and listed apart.
+export function agentsAndSkills(lines, { skills = [], preloads = {}, named = {}, otherGuides = [] } = {}) {
+  const runs = new Map();
+  const lead = { calls: 0, spawns: 0, loads: 0, edits: new Map() };
+  const by = new Map();
+  const days = new Map();
+  const day = (t) => days.get(dayOf(t)) ?? days.set(dayOf(t), { day: dayOf(t), agents: 0, withSkill: 0, preloads: 0, loads: 0 }).get(dayOf(t));
+  const use = (name, e, kind) => {
+    const k = by.get(name) ?? by.set(name, { name, loads: 0, preloads: 0, roles: new Set(), tickets: new Set(), last: 0 }).get(name);
+    k[kind]++;
+    k.roles.add(e.agent ? e.who : 'lead');
+    if (e.ticket) k.tickets.add(e.ticket);
+    k.last = Math.max(k.last, T(e));
+    day(T(e))[kind]++;
+  };
+  const run = (e) => runs.get(e.agent) ?? runs.set(e.agent, { agent: e.agent, who: e.who, ticket: e.ticket ?? null, at: T(e), preloaded: [], loaded: new Map() }).get(e.agent);
+  for (const e of lines) {
+    const s = skillOf(e);
+    if (e.agent) {
+      if (e.event === 'agent.start') {
+        const r = run(e);
+        r.at = T(e);
+        r.preloaded = Array.isArray(e.skills) ? e.skills : [];
+        for (const p of r.preloaded) use(p, e, 'preloads');
+      }
+      if (s) { inc(run(e).loaded, s); use(s, e, 'loads'); }
+    } else if (e.event === 'tool.start') {
+      lead.calls++;
+      if (SPAWNS.has(e.tool)) lead.spawns++;
+      if (s) { lead.loads++; use(s, e, 'loads'); }
+      // The lead writing the app's own files (a path inside the checkout, outside .forge/): work a lane should do.
+      if (EDITS.has(e.tool) && e.what && !/^(\/|~|\.forge\/)/.test(String(e.what))) inc(lead.edits, e.what);
+    }
+  }
+  const list = [...runs.values()].sort((a, b) => a.at - b.at);
+  const had = (r) => r.preloaded.length > 0 || r.loaded.size > 0;
+  for (const r of list) { const d = day(r.at); d.agents++; if (had(r)) d.withSkill++; }
+  const roleMap = new Map();
+  for (const r of list) {
+    const x = roleMap.get(r.who) ?? roleMap.set(r.who, { who: r.who, runs: 0, withSkill: 0, preloaded: new Map(), loaded: new Map() }).get(r.who);
+    x.runs++;
+    if (had(r)) x.withSkill++;
+    for (const p of r.preloaded) inc(x.preloaded, p);
+    for (const [k, n] of r.loaded) inc(x.loaded, k, n);
+  }
+  const other = new Set(otherGuides);
+  const roleList = [...roleMap.values()].map((x) => {
+    const own = (named[x.who] ?? []).filter((k) => !other.has(k));
+    return { ...x, preloads: preloads[x.who] ?? [], named: own, unused: own.filter((k) => !x.preloaded.has(k) && !x.loaded.has(k)) };
+  }).sort((a, b) => b.runs - a.runs || a.who.localeCompare(b.who));
+  const never = skills.filter((k) => !by.has(k));
+  return {
+    runs: list,
+    roles: roleList,
+    skills: [...by.values()].sort((a, b) => b.loads + b.preloads - (a.loads + a.preloads) || a.name.localeCompare(b.name)),
+    never: never.filter((k) => !other.has(k)),
+    otherStack: never.filter((k) => other.has(k)),
+    days: [...days.values()].filter((d) => d.agents || d.loads || d.preloads).sort((a, b) => a.day - b.day),
+    lead: { ...lead, edits: [...lead.edits].sort((a, b) => b[1] - a[1]) },
+    available: skills.length,
+    recorded: lines.some((e) => e.event === 'agent.start' && Array.isArray(e.skills)),
+  };
+}
+
 const quantile = (xs, q) => {
   if (!xs.length) return null;
   const s = [...xs].sort((a, b) => a - b);
@@ -368,9 +448,13 @@ export function agentRows(t, prices = {}) {
   const seen = new Set();
   for (const e of t.lines) {
     const key = e.agent ?? ' lead';
-    const r = rows.get(key) ?? { agent: e.agent ?? null, who: e.agent ? e.who : 'lead', tokens: 0, cost: 0, byModel: {}, first: T(e), last: T(e) };
+    const r = rows.get(key) ?? { agent: e.agent ?? null, who: e.agent ? e.who : 'lead', tokens: 0, cost: 0, byModel: {}, first: T(e), last: T(e), preloaded: [], loaded: new Map() };
     r.first = Math.min(r.first, T(e));
     r.last = Math.max(r.last, T(e));
+    // Its skills (decision 137): preloaded before its first turn, and the ones it opened itself.
+    if (e.event === 'agent.start' && Array.isArray(e.skills)) r.preloaded = e.skills;
+    const skill = skillOf(e);
+    if (skill) inc(r.loaded, skill);
     if (e.tokens && e.reply && !seen.has(e.reply)) {
       seen.add(e.reply);
       r.tokens += e.tokens;
@@ -384,7 +468,7 @@ export function agentRows(t, prices = {}) {
     const span = r.agent ? spans.get(r.agent) : null;
     const job = r.agent ? jobs.get(r.agent) : null;
     const model = Object.entries(r.byModel).sort((a, b) => b[1] - a[1])[0]?.[0] ?? (job?.model ? familyOf(job.model) : null);
-    return { agent: r.agent, who: r.who, job: r.agent ? job?.what ?? null : 'its own turns for this ticket', model, tokens: r.tokens, cost: r.cost, from: span?.from ?? r.first, to: span?.to ?? r.last };
+    return { agent: r.agent, who: r.who, job: r.agent ? job?.what ?? null : 'its own turns for this ticket', model, tokens: r.tokens, cost: r.cost, from: span?.from ?? r.first, to: span?.to ?? r.last, skills: { preloaded: r.preloaded, loaded: [...r.loaded] } };
   });
   const lead = out.filter((r) => !r.agent);
   return [...out.filter((r) => r.agent && (r.tokens || r.job)).sort((a, b) => a.from - b.from), ...lead.filter((r) => r.tokens)];

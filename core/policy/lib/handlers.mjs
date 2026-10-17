@@ -353,11 +353,22 @@ function kitChange(ctx) {
 // An agent of a system's workspace root starts at the root, not in a worktree (decision 130).
 const SYSTEM_LANE = 'SYSTEM: you start at the system\'s workspace root. Work only in the lane your task names (<workspace>/<repo>/.claude/worktrees/<name>): begin every shell command with `cd <lane> && `, and give files their absolute path inside the lane. Never change the workspace root or a repository\'s main checkout.';
 
+// The skills Claude Code loaded into an agent before its first turn (decision 137): its agent file's `skills:` list,
+// as forge sync rendered it. The timeline keeps them, since a preloaded skill makes no Skill call to record.
+function preloadedSkills(ctx, type) {
+  if (!/^[\w-]+$/.test(String(type || ''))) return undefined;
+  try {
+    const front = /^---\n([\s\S]*?)\n---/.exec(fs.readFileSync(path.join(ctx.mainRoot, '.claude', 'agents', `${type}.md`), 'utf8'))?.[1] ?? '';
+    const list = (/^skills:[ \t]*\n((?:[ \t]+-[^\n]*(?:\n|$))+)/m.exec(front)?.[1] ?? '').split('\n').map((l) => l.replace(/^\s*-\s*/, '').trim()).filter(Boolean);
+    return list.length ? list : undefined;
+  } catch { return undefined; }
+}
+
 // SubagentStart: every lane gets the shared rules, the lane rules and the project's facts,
 // also inside a worktree where no project files exist.
 export function subagentStart(input, env) {
   const ctx = makeContext(input, env);
-  record(ctx, 'agent.start');
+  record(ctx, 'agent.start', { skills: preloadedSkills(ctx, input.agent_type) });
   if (!ctx.configSource) return null;
   const system = systemRootOf(ctx) ? SYSTEM_LANE : '';
   const text = [...warnings(ctx), system, readKitFile('core/AGENTS.md').trim(), readKitFile('core/LANES.md').trim(), projectRules(ctx), projectFacts(ctx)].filter(Boolean).join('\n\n');

@@ -5,6 +5,7 @@ tier: standard
 access: read-only
 isolation: worktree
 maxTurns: 80
+skills: load-test
 ---
 
 You review performance; you never edit code or run load tests yourself (the QA lane runs k6, skill `load-test`).

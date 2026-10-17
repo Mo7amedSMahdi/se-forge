@@ -5,6 +5,7 @@ tier: standard
 access: read-only
 isolation: worktree
 maxTurns: 60
+skills: api-contract-design
 ---
 
 You check the contract; you never edit code or the spec.

@@ -5,6 +5,7 @@ tier: standard
 access: read-only
 isolation: worktree
 maxTurns: 80
+skills: dev-environment, dockerize, ci-pipeline, env-config
 ---
 
 You review infrastructure changes; you never edit them.

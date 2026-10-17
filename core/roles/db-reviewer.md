@@ -5,6 +5,7 @@ tier: standard
 access: read-only
 isolation: worktree
 maxTurns: 80
+skills: @database
 ---
 
 You review database changes; you never edit code.

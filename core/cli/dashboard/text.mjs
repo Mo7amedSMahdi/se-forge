@@ -69,6 +69,9 @@ export function renderText(m, { project }) {
   out.push(`Tickets merged: ${p.ticketsDone.length} of ${p.totalTickets} · stories done: ${p.totalStories ? `${p.storiesDone.length} of ${p.totalStories}` : 'no story list'}`);
   out.push(`Working time: ${duration(sums.working)} · waiting for you: ${duration(sums.waiting)}`);
   out.push(`Tokens: ${fmt(sums.tokens)} · API cost: ${money ? dollars(sums.cost) : 'no prices set'} · Opus share of ${money ? 'cost' : 'tokens'}: ${pct(sums.opusShare)} · agents: ${sums.agents}`);
+  // Decision 137: how many agents had a skill to work from, preloaded or opened itself.
+  const sk = m.skills;
+  if (sk?.runs.length) out.push(`Skills: ${sk.runs.filter((r) => r.preloaded.length || r.loaded.size).length} of ${sk.runs.length} agents had one (${sk.skills.reduce((x, k) => x + k.loads, 0)} opened, ${sk.skills.reduce((x, k) => x + k.preloads, 0)} preloaded); ${sk.skills.length}${sk.available ? ` of ${sk.available}` : ''} skills used.`);
   const timed = m.all.filter((t) => t.from !== null);
   out.push(fc
     ? `Forecast: ${fc.remaining} tickets left. At the pace of the ${fc.basis} merged so far, one after the other: done around ${day(fc.doneMid)} (from ${day(fc.doneLo)} to ${day(fc.doneHi)}), about ${fmt(fc.tokensMid)} tokens${money ? ` and ${dollars(fc.costMid)} (${dollars(fc.costLo)}–${dollars(fc.costHi)})` : ''}.`

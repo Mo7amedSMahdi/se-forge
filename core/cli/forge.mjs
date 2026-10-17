@@ -237,7 +237,9 @@ async function sync(main, o, env, out) {
   const { project: facts, errors: invalid } = loadConfig(main, env);
   if (invalid.length) throw new UsageError(`project.json is invalid, nothing written:\n  ${invalid.join('\n  ')}\n(forge config check <file> checks a fix)`);
   // A system's workspace root renders its agents without worktree isolation: each works in the lane forge gives it.
-  const { files, access } = renderClaude({ kitRoot: src, overrides: path.join(folder, 'kit'), models: facts.models, isolation: memberOf(main)?.repo !== null });
+  // The stack picks the guides the agents preload (decision 137); a system's adds every repository's.
+  const stack = [...Object.values(facts.stack ?? {}), ...(readJson(path.join(folder, 'system.json'), {}).repos ?? []).map((r) => r.stack)].filter((v) => typeof v === 'string');
+  const { files, access } = renderClaude({ kitRoot: src, overrides: path.join(folder, 'kit'), models: facts.models, isolation: memberOf(main)?.repo !== null, stack });
 
   const manifestFile = path.join(main, '.forge', 'state', 'sync-manifest.json');
   const previous = readJson(manifestFile, { files: {} }).files;
@@ -773,7 +775,8 @@ async function run(argv, env, cwd, out, failed) {
           // The tracker's issues and their history (decision 122); --offline draws from the last read.
           const issues = project.tracker ? await readIssues({ main: m, stateDir: path.join(m, '.forge', 'state'), tracker: project.tracker, board: project.board, env, offline: o.offline === true }) : null;
           const model = dashboardModel({ main: m, folder, teamRoot: top.out, base: config.branches.base, stateDir: path.join(m, '.forge', 'state'), prices: project.prices, engineers: config.budget.engineers, days: o.days ? Number(o.days) : null, only, kit: { active: readVersion(path.join(m, '.forge', 'kit')), pinned, cli: kitVersion() }, issues, app: o.text === true ? null : appInfo(m, env),
-            architecture: o.text === true ? null : architectureModel({ main: m, folder, base: config.branches.base, project, config, env, stateDir: path.join(m, '.forge', 'state') }), watch: watch ? { every } : null, limits: config.limits, tracker: project.tracker, repos });
+            architecture: o.text === true ? null : architectureModel({ main: m, folder, base: config.branches.base, project, config, env, stateDir: path.join(m, '.forge', 'state') }), watch: watch ? { every } : null, limits: config.limits, tracker: project.tracker, repos,
+            stack: [...Object.values(project.stack ?? {}), ...(systemOf(m)?.repos ?? []).map((r) => r.stack)].filter((v) => typeof v === 'string') });
           if (o.text === true) return { model };
           return { model, ...writeDashboard(model, { project: project.name || path.basename(m), out: file }) };
         };

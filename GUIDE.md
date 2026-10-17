@@ -444,7 +444,7 @@ GitLab for chart 3 (`--offline` skips that and uses the last read; the first rea
 per ten issues, later ones only fetch what changed). The page itself needs no internet. The
 totals stay on top (among them **Working time**: the AI at work, without the waits for you and without the
 stretches when nothing happened, such as a laptop asleep), and the charts, the app's screenshots and the tickets are
-in eight tabs:
+in nine tabs:
 
 | Tab | Chart | Look for |
 |---|---|---|
@@ -461,9 +461,12 @@ in eight tabs:
 | | 10. Spend per day | days that cost far more than the work done on them |
 | Quality | 11. Rework | what everything after the first review blocker cost |
 | | 12. Friction map | refusals and failures by role: the role or skill to fix, and refusals that should not happen |
+| Agents & skills | 13. Sub-agents and skills, day by day | days when most agents had no skill to work from, and the lead editing the app's files itself |
+| | 14. Roles and their skills | roles that never use the skills their instructions name |
+| | 15. Skills | the skills used, by whom and on which tickets, and the ones never used |
 | Screens | | what the app looked like, and when: the screenshots by day, with their ticket and what they show; click one to see it larger |
 | Run the app | | whether the app runs now (the page checks every few seconds), the commands to build, start and stop it with a Copy button each, and its addresses on your Mac |
-| Tickets | | every ticket, the ones nobody has picked yet too, with its status on the board; sortable by any column, its tokens and cost right after its status; click a ticket's number to open its issue in GitLab, and ▸ to see its agents one by one: the job each was given, its model, tokens, cost and time, with the lead's own share last. In a system, a Repo column and a filter by repository |
+| Tickets | | every ticket, the ones nobody has picked yet too, with its status on the board; sortable by any column, its tokens and cost right after its status; click a ticket's number to open its issue in GitLab, and ▸ to see its agents one by one: the job each was given, its model, its skills, tokens, cost and time, with the lead's own share last. In a system, a Repo column and a filter by repository |
 
 Hover any bar or segment for its numbers.
 

@@ -1,10 +1,11 @@
-// forge dashboard (decisions 98 to 100, 122): one local HTML page with twelve charts, the app's screenshots and a ticket
-// table in six tabs, from the project's own records (data.mjs) and the measures (measures.mjs). No library, no
+// forge dashboard (decisions 98 to 100, 122, 137): one local HTML page with fifteen charts, the app's screenshots and a
+// ticket table in nine tabs, from the project's own records (data.mjs) and the measures (measures.mjs). No library, no
 // network: the pictures are inside the page. Written next to a CSV.
 import fs from 'node:fs';
 import path from 'node:path';
-import { projectData } from './data.mjs';
-import { ticketSummaries, progress, roles, friction, replies, composition, daily, groupBy, stageOf, projectTimeline, agentRows, agentCount, STAGES, PARTS, WAIT_KINDS } from './measures.mjs';
+import { projectData, readAgentFiles } from './data.mjs';
+import { ticketSummaries, progress, roles, friction, replies, composition, daily, groupBy, stageOf, projectTimeline, agentRows, agentCount, agentsAndSkills, STAGES, PARTS, WAIT_KINDS } from './measures.mjs';
+import { stackGuides, ALL_GUIDES } from '../../policy/lib/stack.mjs';
 import { stackedBars, columns, gantt, burnup, dayStrips, flow, esc } from './svg.mjs';
 import { BANDS, issueFlow, countsText, issueLinks, isEpic, fromBoard, issueTicket } from './issues.mjs';
 import { git } from '../../policy/lib/context.mjs';
@@ -38,7 +39,8 @@ function byFamily(lines, prices, money) {
 // watch: { every } (minutes) when forge dashboard --watch rebuilds the page, which then reloads itself.
 // limits: the project's per-ticket limits (policy.limits, decision 127); each open ticket gets what it used of them.
 // tracker: gitlab or github, for each ticket's link to its issue. repos: a system's member repositories (projectData).
-export function dashboardModel({ main, folder, teamRoot, base, stateDir, prices = {}, engineers = [], days = null, only = null, kit = null, issues = null, app = null, architecture = null, watch = null, limits = null, tracker = 'gitlab', repos = null, now = Date.now() }) {
+// stack: the project's stack in its own words, which tells the stack guides it uses from the ones it does not (decision 137).
+export function dashboardModel({ main, folder, teamRoot, base, stateDir, prices = {}, engineers = [], days = null, only = null, kit = null, issues = null, app = null, architecture = null, watch = null, limits = null, tracker = 'gitlab', repos = null, stack = [], now = Date.now() }) {
   const data = projectData({ main, folder, teamRoot, base, stateDir, repos });
   const since = days ? now - days * 24 * H : -Infinity;
   data.lines = data.lines.filter((e) => T(e) >= since);
@@ -74,7 +76,9 @@ export function dashboardModel({ main, folder, teamRoot, base, stateDir, prices 
   const marks = shots.map((s) => ({ at: s.at, href: `#shot-${s.n}`, title: `Screenshot ${clock(s.at)}${s.ticket ? ` · #${s.ticket}` : ''} · ${s.what}` }));
   const tracked = issues ? { ...issueFlow(issues.issues), host: issues.host, readAt: issues.readAt, error: issues.error } : null;
   const link = issueLinks({ issues: issues?.issues ?? [], remote: main ? git(main, ['remote', 'get-url', 'origin']).out : '', tracker });
-  return { data, all, tickets: picked, every, table, only, kit, issues: tracked, app, architecture, watch, link, lines, money, prices, now, since, shots, progress: progress(data, all, now), roles: roles(lines, prices), friction: friction(lines), timeline: projectTimeline(lines, { merges, shots: marks }) };
+  const mine = new Set(Object.values(stackGuides(stack)).flat());
+  const skills = agentsAndSkills(lines, { ...readAgentFiles(main), otherGuides: ALL_GUIDES.filter((g) => !mine.has(g)) });
+  return { data, all, tickets: picked, every, table, only, kit, issues: tracked, app, architecture, watch, link, lines, money, prices, now, since, shots, progress: progress(data, all, now), roles: roles(lines, prices), friction: friction(lines), timeline: projectTimeline(lines, { merges, shots: marks }), skills };
 }
 
 // A ticket's status: its board's (decision 135), else what the records tell.
@@ -99,7 +103,7 @@ export const csv = (m) => { const cols = m.data.repos?.length ? [...CSV, 'repo']
 function legend(keys) {
   return `<div class="legend">${keys.map((k) => `<span><i class="${k.cls}"></i>${esc(k.label)}</span>`).join('')}</div>`;
 }
-const TABS = [['overview', 'Overview'], ['architecture', 'Architecture'], ['time', 'Time'], ['cost', 'Cost'], ['quality', 'Quality'], ['screens', 'Screens'], ['app', 'Run the app'], ['tickets', 'Tickets']];
+const TABS = [['overview', 'Overview'], ['architecture', 'Architecture'], ['time', 'Time'], ['cost', 'Cost'], ['quality', 'Quality'], ['skills', 'Agents & skills'], ['screens', 'Screens'], ['app', 'Run the app'], ['tickets', 'Tickets']];
 const panel = (id, body) => `<section class="panel" id="tab-${id}" role="tabpanel" aria-labelledby="tab-btn-${id}">${body}</section>`;
 const card = (n, title, question, body) => `<section class="card"><h2><span class="num">${n}</span>${esc(title)}</h2><p class="q">${esc(question)}</p>${body}</section>`;
 
@@ -227,6 +231,22 @@ export function renderPage(m, { project }) {
   const c5 = f.rows.length ? `<div class="scroll"><table class="heat"><thead><tr><th></th>${f.cols.map((c) => `<th>${esc(c)}</th>`).join('')}<th>total</th></tr></thead><tbody>${f.rows.map((r) => `<tr><th>${esc(r.row)}</th>${f.cols.map((c) => { const x = r.cells[c]; return x ? `<td style="--a:${(0.12 + 0.88 * (x.tokens / maxTokens)).toFixed(2)}" title="${esc(`${r.row} · ${c}: ${x.n} calls, ${fmt(x.tokens)} tokens in the replies that made them`)}">${x.n}</td>` : '<td class="none"></td>'; }).join('')}<td class="total">${r.total}</td></tr>`).join('')}</tbody></table></div>`
     + (f.reasons.length ? `<h3>Most frequent refusals</h3><ol class="list">${f.reasons.map(([k, c]) => `<li><b>${c}×</b> ${esc(k)}</li>`).join('')}</ol>` : '') : '<p class="empty">No refusals or failed calls.</p>';
 
+  // Agents and skills (decision 137): when sub-agents ran, and the playbooks each had: preloaded before its first turn,
+  // or opened itself (a Skill call, or a read of its SKILL.md).
+  const sk = m.skills;
+  const times = (map) => [...map].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([k, n]) => (n > 1 ? `${k} ×${n}` : k)).join(', ');
+  const SKILL_KEYS = [{ key: 'with', label: 'Agents with a skill', cls: 'c-agents' }, { key: 'without', label: 'Agents with none', cls: 'c-idle' }];
+  const withAny = sk.runs.filter((r) => r.preloaded.length || r.loaded.size).length;
+  const cSkillDays = sk.days.length ? stackedBars({ rows: sk.days.map((d) => ({ label: weekday(d.day), parts: { with: d.withSkill, without: d.agents - d.withSkill }, right: `${d.agents} agent${d.agents === 1 ? '' : 's'} · ${d.loads} opened${d.preloads ? `, ${d.preloads} preloaded` : ''}` })), keys: SKILL_KEYS, fmt: (v) => String(Math.round(v)), rightW: 260 }) : '<p class="empty">No agents in the timeline yet.</p>';
+  const leadText = `The lead itself: ${fmt(sk.lead.calls)} calls, ${sk.lead.spawns} sub-agents started, ${sk.lead.loads} skill${sk.lead.loads === 1 ? '' : 's'} opened, ${sk.lead.edits.length ? `<b>${sk.lead.edits.length} of the app's files edited</b> (${esc(sk.lead.edits.slice(0, 3).map(([f, n]) => `${f}${n > 1 ? ` ×${n}` : ''}`).join(', '))}${sk.lead.edits.length > 3 ? '…' : ''}): work a lane should do` : "none of the app's files edited"}.`;
+  const skillsText = sk.runs.length ? `<p class="fc"><b>${withAny} of ${sk.runs.length}</b> agents had a skill. Skills opened ${sk.skills.reduce((x, k) => x + k.loads, 0)} times and preloaded ${sk.skills.reduce((x, k) => x + k.preloads, 0)} times; ${sk.skills.length} of ${sk.available || 'the'} skills used. ${leadText}</p>${sk.recorded ? '' : '<p class="hint">Preloads are recorded from se-forge 0.2.33: before it, an agent had only the skills it opened itself.</p>'}` : '';
+  const roleRows = sk.roles.map((x) => `<tr><td class="nw">${esc(x.who)}</td><td class="n">${x.runs}</td><td class="n">${x.withSkill}</td><td>${esc(times(x.preloaded)) || (x.preloads.length ? `<span class="dim">from the next run: ${esc(x.preloads.join(', '))}</span>` : '')}</td><td>${esc(times(x.loaded))}</td><td>${x.unused.length ? `<span class="note">${esc(x.unused.join(', '))}</span>` : ''}</td></tr>`).join('');
+  const cSkillRoles = sk.roles.length ? `<div class="scroll"><table class="wrap"><thead><tr><th>Role</th><th>Agents</th><th>With a skill</th><th>Preloaded</th><th>Opened itself</th><th>Named in its instructions, never used</th></tr></thead><tbody>${roleRows}</tbody></table></div><p class="dim">Some named skills are needed only at a step: the requirements panel in a bootstrap, a load test with Gates: performance.</p>` : '<p class="empty">No agents in the timeline yet.</p>';
+  const skillRows = sk.skills.map((k) => `<tr><td class="nw">${esc(k.name)}</td><td class="n">${k.loads || ''}</td><td class="n">${k.preloads || ''}</td><td>${esc([...k.roles].join(', '))}</td><td>${esc([...k.tickets].sort((a, b) => Number(a.slice(1)) - Number(b.slice(1))).join(' '))}</td><td class="nw">${k.last ? esc(when(k.last)) : ''}</td></tr>`).join('');
+  const cSkills = (sk.skills.length ? `<div class="scroll"><table class="wrap"><thead><tr><th>Skill</th><th>Opened</th><th>Preloaded</th><th>By</th><th>Tickets</th><th>Last used</th></tr></thead><tbody>${skillRows}</tbody></table></div>` : '<p class="empty">No skill used yet.</p>')
+    + (sk.never.length ? `<h3>Never used (${sk.never.length})</h3><p>${esc(sk.never.join(', '))}</p>` : '')
+    + (sk.otherStack.length ? `<p class="dim">Guides for other stacks, not this project's: ${esc(sk.otherStack.join(', '))}.</p>` : '');
+
   // Chart 9: progress and forecast.
   const from = Math.min(p.start, ...timed.map((t) => t.from));
   const fc = p.forecast;
@@ -282,8 +302,10 @@ export function renderPage(m, { project }) {
   const agentTable = (t) => {
     const rows = agentRows(t, m.prices);
     if (!rows.length) return null;
-    const head = ['Agent', 'Job', 'Model', 'Tokens', ...(money ? ['Cost'] : []), 'Time', 'Started'];
-    const body = rows.map((r) => `<tr><td>${esc(r.who)}</td><td>${esc(r.job ?? '')}</td><td>${esc(r.model ?? '')}</td><td class="n">${esc(fmt(r.tokens))}</td>${money ? `<td class="n">${esc(dollars(r.cost))}</td>` : ''}<td class="n">${esc(r.agent ? duration(Math.max(0, r.to - r.from)) : '')}</td><td>${esc(r.agent ? when(r.from) : '')}</td></tr>`).join('');
+    const head = ['Agent', 'Job', 'Model', 'Skills', 'Tokens', ...(money ? ['Cost'] : []), 'Time', 'Started'];
+    // Its skills (decision 137): the preloaded ones, then the ones it opened itself.
+    const skillsOf = (x) => [x.preloaded.join(', '), x.loaded.length ? `opened ${x.loaded.map(([k, n]) => (n > 1 ? `${k} ×${n}` : k)).join(', ')}` : ''].filter(Boolean).join(' · ');
+    const body = rows.map((r) => `<tr><td>${esc(r.who)}</td><td>${esc(r.job ?? '')}</td><td>${esc(r.model ?? '')}</td><td>${skillsOf(r.skills) ? esc(skillsOf(r.skills)) : '<span class="dim">none</span>'}</td><td class="n">${esc(fmt(r.tokens))}</td>${money ? `<td class="n">${esc(dollars(r.cost))}</td>` : ''}<td class="n">${esc(r.agent ? duration(Math.max(0, r.to - r.from)) : '')}</td><td>${esc(r.agent ? when(r.from) : '')}</td></tr>`).join('');
     return `<table class="agents"><thead><tr>${head.map((h) => `<th>${h}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`;
   };
   const ticketRows = m.table.map((t) => {
@@ -321,7 +343,7 @@ main{max-width:1100px;margin:0 auto;padding:24px 16px 48px}h1{font-size:22px;mar
 .line{fill:none;stroke-width:2.5}.total{stroke-dasharray:5 4;stroke-width:1}.forecast{stroke-dasharray:2 3;stroke-width:2}.l-tickets{stroke:var(--tickets)}.l-stories{stroke:var(--stories)}.l-tickets-text{fill:var(--tickets)!important}.l-stories-text{fill:var(--stories)!important}.f-band{fill:var(--tickets);opacity:.08}.now{stroke:var(--dim);stroke-dasharray:2 2}
 .legend{display:flex;flex-wrap:wrap;gap:14px;margin:6px 0 2px;color:var(--dim);font-size:12px}.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}.legend .c-agents{background:var(--agents)}.legend .c-gates{background:var(--gates)}.legend .c-waiting{background:var(--waiting)}.legend .c-lead{background:var(--lead)}.legend .c-idle{background:var(--idle)}.legend .m-opus{background:var(--opus)}.legend .m-sonnet{background:var(--sonnet)}.legend .m-haiku{background:var(--haiku)}.legend .m-fable{background:var(--fable)}.legend .m-other{background:var(--other)}.legend .s-plan{background:var(--s-plan)}.legend .s-build{background:var(--s-build)}.legend .s-review{background:var(--s-review)}.legend .s-qa{background:var(--s-qa)}.legend .s-lead{background:var(--s-lead)}.legend .s-other{background:var(--other)}.legend .k-input{background:var(--k-input)}.legend .k-cw5{background:var(--k-cw5)}.legend .k-cw1{background:var(--k-cw1)}.legend .k-cr{background:var(--k-cr)}.legend .k-output{background:var(--k-output)}.legend .w-reply{background:var(--w-reply)}.legend .w-question{background:var(--w-question)}.legend .w-approval{background:var(--w-approval)}.legend .w-permission{background:var(--w-permission)}.legend .mk{width:0;height:0;border-radius:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:8px solid var(--fg)}.legend .shk{background:var(--shot);height:8px}.legend .i-open{background:var(--i-open)}.legend .i-progress{background:var(--i-progress)}.legend .i-testing{background:var(--i-testing)}.legend .i-closed{background:var(--i-closed)}.legend .c-first{background:var(--first)}.legend .c-rework{background:var(--rework)}
 .scroll{overflow-x:auto;scrollbar-color:var(--line) transparent}table{border-collapse:collapse;font-size:12px;width:100%}th,td{padding:5px 7px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}thead th{color:var(--dim);font-weight:600}
-.heat td{text-align:center;background:rgba(var(--heat),var(--a));min-width:44px}.heat td.none{background:none}.heat td.total{background:none;font-weight:600}.tickets th{cursor:pointer}.tickets td a{color:var(--agents);font-weight:600}.tickets td.title{max-width:340px;overflow:hidden;text-overflow:ellipsis}.exp{appearance:none;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--agents);cursor:pointer;font-family:inherit;font-weight:600;font-size:13px;line-height:1;padding:2px 5px;margin-right:6px}.exp:hover{border-color:var(--agents)}.exp[aria-expanded=true]{color:var(--fg)}.exp:focus-visible{outline:2px solid var(--agents);border-radius:3px}.t-agents>td{background:var(--bg);padding:6px 10px 10px 28px}.agents{width:auto;font-size:12px}.agents th{cursor:default}.agents td,.agents th{white-space:nowrap;padding:3px 10px 3px 0;border-bottom:1px solid var(--line)}.agents td:nth-child(2){white-space:normal;min-width:220px}.agents .n{text-align:right}.tickets th:hover{color:var(--fg)}
+.heat td{text-align:center;background:rgba(var(--heat),var(--a));min-width:44px}.heat td.none{background:none}.heat td.total{background:none;font-weight:600}.tickets th{cursor:pointer}.tickets td a{color:var(--agents);font-weight:600}.tickets td.title{max-width:340px;overflow:hidden;text-overflow:ellipsis}.exp{appearance:none;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--agents);cursor:pointer;font-family:inherit;font-weight:600;font-size:13px;line-height:1;padding:2px 5px;margin-right:6px}.exp:hover{border-color:var(--agents)}.exp[aria-expanded=true]{color:var(--fg)}.exp:focus-visible{outline:2px solid var(--agents);border-radius:3px}.t-agents>td{background:var(--bg);padding:6px 10px 10px 28px}.agents{width:auto;font-size:12px}.agents th{cursor:default}.agents td,.agents th{white-space:nowrap;padding:3px 10px 3px 0;border-bottom:1px solid var(--line)}.agents td:nth-child(2){white-space:normal;min-width:220px}.agents .n{text-align:right}.agents td:nth-child(4){white-space:normal;max-width:300px}table.wrap td{white-space:normal;vertical-align:top}table.wrap td.n{text-align:right;white-space:nowrap}table.wrap td.nw{white-space:nowrap}.tickets th:hover{color:var(--fg)}
 .tabs{position:sticky;top:0;z-index:2;display:flex;gap:2px;overflow-x:auto;background:var(--bg);border-bottom:1px solid var(--line);margin:0 0 16px;padding-top:6px}.tabs button{appearance:none;border:0;border-bottom:2px solid transparent;background:none;color:var(--dim);font:inherit;font-weight:600;padding:8px 14px;cursor:pointer;white-space:nowrap}.tabs button:hover{color:var(--fg)}.tabs button[aria-selected=true]{color:var(--fg);border-bottom-color:var(--fg)}.tabs button:focus-visible{outline:2px solid var(--agents);outline-offset:-2px;border-radius:4px}
 .tabs .count{color:var(--dim);font-weight:400;margin-left:5px}
 .shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-bottom:6px}.shot{margin:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--bg);scroll-margin-top:56px}.shot img{display:block;width:100%;height:auto;border-bottom:1px solid var(--line)}.shot figcaption{padding:6px 9px;font-size:12px}.shot .smaller{display:none;color:var(--dim)}.shot:target{grid-column:1/-1;outline:2px solid var(--shot)}.shot:target .smaller{display:inline}
@@ -353,9 +375,12 @@ ${card(9, 'What the cost is made of', 'Each model by token kind: cache reads are
 ${card(10, `${money ? 'Spend' : 'Tokens'} per day`, 'How the spend moves from day to day, by model.', costNote + legend(MODELS.filter((k) => days.some((d) => d.tokens[k.key]))) + cDaily)}`)}
 ${panel('quality', `${card(11, 'Rework', 'What the first blocker costs: everything after the first review round with a blocker.', legend([{ label: 'First pass', cls: 'c-first' }, { label: 'After the first blocker', cls: 'c-rework' }]) + c4)}
 ${card(12, 'Friction map', 'Where agents hit walls: refusals by rule and failed commands, per role. The colour is the tokens of the replies that made them.', c5)}`)}
+${panel('skills', `${card(13, 'Sub-agents and skills, day by day', 'When did sub-agents run, and did they have their playbooks? Each day: the agents started, with a skill (preloaded, or opened itself) or with none.', legend(SKILL_KEYS) + cSkillDays + skillsText)}
+${card(14, 'Roles and their skills', 'Which roles work from their skills, and which skip the ones their instructions name.', cSkillRoles)}
+${card(15, 'Skills', 'Which skills were used, by whom and on which tickets; and the ones never used.', cSkills)}`)}
 ${panel('screens', `<section class="card"><h2>Screens</h2><p class="q">What the app looked like, and when: the pictures kept with forge shot, oldest first. Click one to see it larger.</p>${cShots}</section>`)}
 ${panel('app', `<section class="card"><h2>Run the app</h2><p class="q">See the app as it is now: build and start its containers on this Mac, then open it.</p>${cApp}</section>`)}
-${panel('tickets', `<section class="card"><h2>Tickets</h2><p class="q">Every ticket, the ones nobody has picked yet too, with its status on the board${!m.issues ? ' (no tracker: the status comes from the records)' : !m.issues.readAt ? ' (the board has not been read yet: run forge dashboard without --offline; until then the status comes from the records)' : ''}. Click a column to sort, a ticket's number to open its issue, and ▸ to see its agents one by one (the job each was given, its model, tokens and time; the lead's own turns last). The same rows are in dashboard.csv next to this page.</p>${table}</section>`)}
+${panel('tickets', `<section class="card"><h2>Tickets</h2><p class="q">Every ticket, the ones nobody has picked yet too, with its status on the board${!m.issues ? ' (no tracker: the status comes from the records)' : !m.issues.readAt ? ' (the board has not been read yet: run forge dashboard without --offline; until then the status comes from the records)' : ''}. Click a column to sort, a ticket's number to open its issue, and ▸ to see its agents one by one (the job each was given, its model, its skills, tokens and time; the lead's own turns last). The same rows are in dashboard.csv next to this page.</p>${table}</section>`)}
 <footer>${notes.map((x) => `<p>${esc(x)}</p>`).join('')}</footer>
 </main>
 <script>

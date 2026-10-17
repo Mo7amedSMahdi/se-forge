@@ -84,6 +84,19 @@ test('a spawn names its ticket and model; the agent\'s own lines then carry that
   assert.ok(mine.every((e) => e.who === 'code-reviewer' && e.ticket === '#12'), 'ticket from the spawn, not the branch (#1)');
 });
 
+test('an agent\'s start line names the skills Claude Code preloaded into it, from its agent file (decision 137)', () => {
+  const { dir } = makeRepo();
+  fs.mkdirSync(path.join(dir, '.claude/agents'), { recursive: true });
+  fs.writeFileSync(path.join(dir, '.claude/agents/backend-engineer.md'), '---\nname: backend-engineer\nmodel: sonnet\nisolation: worktree\nskills:\n  - stack-nestjs\n  - db-mongodb\n---\nYou are a backend engineer.\n');
+  fs.writeFileSync(path.join(dir, '.claude/agents/code-reviewer.md'), '---\nname: code-reviewer\nmodel: sonnet\n---\nNo skills: line.\n');
+  hook('subagent-start', { hook_event_name: 'SubagentStart', agent_id: 'e1', agent_type: 'backend-engineer' }, dir);
+  assert.deepEqual([last(dir).event, last(dir).who, last(dir).skills], ['agent.start', 'backend-engineer', ['stack-nestjs', 'db-mongodb']]);
+  hook('subagent-start', { hook_event_name: 'SubagentStart', agent_id: 'r1', agent_type: 'code-reviewer' }, dir);
+  assert.equal(last(dir).skills, undefined, 'no skills: line, nothing recorded');
+  hook('subagent-start', { hook_event_name: 'SubagentStart', agent_id: 'x1', agent_type: '../../etc/passwd' }, dir);
+  assert.equal(last(dir).skills, undefined, 'only an agent name is looked up');
+});
+
 test('an engineer sent back by the gates, and the gate check that stopped it', () => {
   const { dir } = makeRepo();
   const r = hook('subagent-stop', { hook_event_name: 'SubagentStop', stop_hook_active: false, agent_id: 'e1', agent_type: 'backend-engineer' }, dir);

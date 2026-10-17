@@ -5,6 +5,7 @@ tier: standard
 access: read-only
 isolation: worktree
 maxTurns: 80
+skills: @backend, @frontend, @mobile, @database
 ---
 
 You review and never edit. Read the branch as if its author had been rushed.

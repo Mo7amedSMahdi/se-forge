@@ -338,7 +338,7 @@ test('forge timeline import: the history from Claude Code\'s logs, before the ho
   assert.equal(fs.readFileSync(path.join(w.state, 'timeline-import.jsonl'), 'utf8').trim().split('\n').length, lines.length, 'running it again replaces, never adds');
 });
 
-test('forge dashboard: one page with twelve charts, the architecture, the screens, the app and the table in eight tabs, a CSV next to it', () => {
+test('forge dashboard: one page with fifteen charts, the architecture, the screens, the app and the table in nine tabs, a CSV next to it', () => {
   const w = world();
   write(path.join(w.state, 'timeline-2026-10.jsonl'), `${LINES.map((e) => JSON.stringify(e)).join('\n')}\n`);
   record({ buf: Buffer.from('a picture'), info: { type: 'png', width: 1280, height: 720 }, at: T0 + 30 * M, what: 'S1 the <data> model page', ticket: 10, branch: 'feat/10-data-model', commit: 'c0ffee12345678' }, w.folder);
@@ -351,9 +351,9 @@ test('forge dashboard: one page with twelve charts, the architecture, the screen
   assert.match(r.stdout, /2 tickets, 2 of 3 merged/);
   const html = fs.readFileSync(out, 'utf8');
   for (const title of ['The project over time', 'Progress and forecast', 'Issues over time', 'Where each ticket\'s time goes', 'Waiting for you', 'Tokens per ticket, by model', 'Tokens per ticket, by stage', 'Who spends it, on which model', 'What the cost is made of', 'Tokens per day', 'Rework', 'Friction map', 'Tickets']) assert.ok(html.includes(esc(title)), title);
-  assert.equal((html.match(/<span class="num">/g) || []).length, 12);
-  assert.deepEqual([...html.matchAll(/<button type="button" role="tab" [^>]*aria-selected="(\w+)" data-tab="(\w+)">/g)].map((x) => `${x[2]}:${x[1]}`), ['overview:true', 'architecture:false', 'time:false', 'cost:false', 'quality:false', 'screens:false', 'app:false', 'tickets:false']);
-  assert.deepEqual([...html.matchAll(/<section class="panel" id="tab-(\w+)"/g)].map((x) => x[1]), ['overview', 'architecture', 'time', 'cost', 'quality', 'screens', 'app', 'tickets']);
+  assert.equal((html.match(/<span class="num">/g) || []).length, 15);
+  assert.deepEqual([...html.matchAll(/<button type="button" role="tab" [^>]*aria-selected="(\w+)" data-tab="(\w+)">/g)].map((x) => `${x[2]}:${x[1]}`), ['overview:true', 'architecture:false', 'time:false', 'cost:false', 'quality:false', 'skills:false', 'screens:false', 'app:false', 'tickets:false']);
+  assert.deepEqual([...html.matchAll(/<section class="panel" id="tab-(\w+)"/g)].map((x) => x[1]), ['overview', 'architecture', 'time', 'cost', 'quality', 'skills', 'screens', 'app', 'tickets']);
   assert.match(html, /data-tab="screens">Screens<span class="count">2<\/span>/, 'a record pointing outside shots/ is skipped');
   assert.match(html, /alt="edited by hand" width="" height="5"/, 'what a record says is never markup');
   assert.doesNotMatch(html, /<script>x\(\)/);
@@ -677,6 +677,63 @@ test('forge dashboard: no watch script without --watch; --watch with --text, or 
   assert.match(r.stderr, /--every takes minutes, 1 or more/);
 });
 
+// Decision 137: when sub-agents ran and what each had to work from, from the timeline and the checkout's agent files.
+test('the Agents & skills tab: each agent\'s skills, preloaded or opened itself, by day, by role and by skill; the lead\'s own edits', async () => {
+  const w = world();
+  write(path.join(w.client, '.claude/skills/stack-nestjs/SKILL.md'), '---\nname: stack-nestjs\n---\n');
+  write(path.join(w.client, '.claude/skills/new-endpoint/SKILL.md'), '---\nname: new-endpoint\n---\n');
+  write(path.join(w.client, '.claude/skills/plan-ticket/SKILL.md'), '---\nname: plan-ticket\n---\n');
+  write(path.join(w.client, '.claude/skills/stack-fastapi/SKILL.md'), '---\nname: stack-fastapi\n---\n');
+  write(path.join(w.client, '.claude/skills/retro/SKILL.md'), '---\nname: retro\n---\n');
+  write(path.join(w.client, '.claude/agents/backend-engineer.md'), '---\nname: backend-engineer\nskills:\n  - stack-nestjs\n  - new-endpoint\n---\nUse `stack-nestjs`, `stack-fastapi` and `new-endpoint`.\n');
+  write(path.join(w.client, '.claude/agents/planner.md'), '---\nname: planner\n---\nFollow `plan-ticket`.\n');
+  const lines = [
+    { at: at(1), event: 'tool.start', who: 'lead', tool: 'Agent', id: 's1', what: 'planner: Plan #10', ticket: '#10' },
+    { at: at(1), event: 'tool.done', who: 'lead', tool: 'Agent', id: 's1', spawned: 'p1', ticket: '#10' },
+    { at: at(2), event: 'agent.start', who: 'planner', agent: 'p1' },
+    { at: at(3), event: 'tool.start', who: 'planner', agent: 'p1', tool: 'Skill', what: 'plan-ticket', id: 'k1' },
+    { at: at(4), event: 'tool.start', who: 'planner', agent: 'p1', tool: 'Read', what: '.claude/skills/plan-ticket/SKILL.md', id: 'k2' },
+    { at: at(5), event: 'agent.stop', who: 'planner', agent: 'p1', ...tokens('q1', 'claude-opus-5-5', 900) },
+    { at: at(6), event: 'tool.start', who: 'lead', tool: 'Agent', id: 's2', what: 'backend-engineer: API lane #10', ticket: '#10' },
+    { at: at(6), event: 'tool.done', who: 'lead', tool: 'Agent', id: 's2', spawned: 'e1', ticket: '#10' },
+    { at: at(7), event: 'agent.start', who: 'backend-engineer', agent: 'e1', skills: ['stack-nestjs', 'new-endpoint'] },
+    { at: at(9), event: 'agent.stop', who: 'backend-engineer', agent: 'e1', ...tokens('q2', 'claude-sonnet-5-5', 700) },
+    { at: at(10), event: 'tool.start', who: 'lead', tool: 'Agent', id: 's3', what: 'backend-engineer: API lane #10 fix', ticket: '#10' },
+    { at: at(10), event: 'tool.done', who: 'lead', tool: 'Agent', id: 's3', spawned: 'e0', ticket: '#10' },
+    { at: at(11), event: 'agent.start', who: 'backend-engineer', agent: 'e0' },
+    { at: at(12), event: 'agent.stop', who: 'backend-engineer', agent: 'e0', ...tokens('q3', 'claude-sonnet-5-5', 300) },
+    { at: at(13), event: 'tool.start', who: 'lead', tool: 'Edit', what: 'src/app.ts', id: 'l1', ticket: '#10' },
+    { at: at(14), event: 'tool.start', who: 'lead', tool: 'Edit', what: '.forge/handoffs/lead-handover.md', id: 'l2' },
+    { at: at(15), event: 'tool.start', who: 'lead', tool: 'Write', what: '/tmp/notes.md', id: 'l3' },
+  ];
+  write(path.join(w.state, 'timeline-2026-10.jsonl'), `${lines.map((e) => JSON.stringify(e)).join('\n')}\n`);
+  const { dashboardModel, renderPage } = await import('../../core/cli/dashboard/page.mjs');
+  const { agentRows } = await import('../../core/cli/dashboard/measures.mjs');
+  const m = dashboardModel({ main: w.client, folder: w.folder, teamRoot: w.team, base: 'dev', stateDir: w.state, stack: ['NestJS 11', 'PostgreSQL 16'] });
+  const sk = m.skills;
+  assert.deepEqual(sk.runs.map((r) => [r.who, r.preloaded.join(','), [...r.loaded].map(([k, n]) => `${k}×${n}`).join(',')]), [['planner', '', 'plan-ticket×2'], ['backend-engineer', 'stack-nestjs,new-endpoint', ''], ['backend-engineer', '', '']]);
+  const be = sk.roles.find((x) => x.who === 'backend-engineer');
+  assert.deepEqual([be.runs, be.withSkill, [...be.preloaded.keys()], be.unused], [2, 1, ['stack-nestjs', 'new-endpoint'], []], 'stack-fastapi is another stack\'s guide, not "never used"');
+  assert.deepEqual(sk.skills.map((k) => [k.name, k.loads, k.preloads]), [['plan-ticket', 2, 0], ['new-endpoint', 0, 1], ['stack-nestjs', 0, 1]]);
+  assert.deepEqual([sk.never, sk.otherStack], [['retro'], ['stack-fastapi']]);
+  assert.deepEqual([sk.lead.spawns, sk.lead.edits], [3, [['src/app.ts', 1]]], 'only the app\'s own files count as the lead\'s edits');
+  assert.equal(sk.recorded, true);
+  const t = m.tickets.find((x) => x.num === 10);
+  assert.deepEqual(agentRows(t).filter((r) => r.agent).map((r) => [r.who, r.skills.preloaded.join(','), r.skills.loaded.map(([k, n]) => `${k}×${n}`).join(',')]), [['planner', '', 'plan-ticket×2'], ['backend-engineer', 'stack-nestjs,new-endpoint', ''], ['backend-engineer', '', '']]);
+  const html = renderPage(m, { project: 'acme' });
+  const tab = html.slice(html.indexOf('id="tab-skills"'), html.indexOf('id="tab-screens"'));
+  assert.match(tab, /<b>2 of 3<\/b> agents had a skill\. Skills opened 2 times and preloaded 2 times; 3 of 5 skills used\./);
+  assert.match(tab, /<b>1 of the app's files edited<\/b> \(src\/app\.ts\)/);
+  assert.match(tab, /<td class="nw">backend-engineer<\/td><td class="n">2<\/td><td class="n">1<\/td><td>new-endpoint, stack-nestjs<\/td>/, 'most used first, then by name');
+  assert.match(tab, /<h3>Never used \(1\)<\/h3><p>retro<\/p>/);
+  assert.match(tab, /Guides for other stacks, not this project's: stack-fastapi\./);
+  assert.doesNotMatch(tab, /Preloads are recorded from/, 'the timeline records preloads');
+  assert.match(html, /<td>stack-nestjs, new-endpoint<\/td>/, 'the Tickets tab names each agent\'s skills');
+  assert.match(html, /<td>opened plan-ticket ×2<\/td>/);
+  const { renderText } = await import('../../core/cli/dashboard/text.mjs');
+  assert.match(renderText(m, { project: 'acme' }), /^Skills: 2 of 3 agents had one \(2 opened, 2 preloaded\); 3 of 5 skills used\.$/m);
+});
+
 test('a ticket\'s agents one by one: the job each was given, its model, tokens and time, the lead last (decision 129)', async () => {
   const { agentRows } = await import('../../core/cli/dashboard/measures.mjs');
   const w = world();
@@ -687,7 +744,7 @@ test('a ticket\'s agents one by one: the job each was given, its model, tokens a
   const html = fs.readFileSync(out, 'utf8');
   assert.match(html, /<tr class="t-row"><td data-v="10"><button type="button" class="exp" aria-expanded="false" aria-label="Show the agents of #10"/);
   const rows = /<tr class="t-agents" hidden><td colspan="\d+"><table class="agents">([\s\S]*?)<\/table>/.exec(html.slice(html.indexOf('<td data-v="10">')))[1];
-  const cells = [...rows.matchAll(/<tr><td>([^<]*)<\/td><td>([^<]*)<\/td><td>([^<]*)<\/td><td class="n">([^<]*)<\/td>/g)].map((x) => x.slice(1));
+  const cells = [...rows.matchAll(/<tr><td>([^<]*)<\/td><td>([^<]*)<\/td><td>([^<]*)<\/td><td>(?:<span class="dim">)?[^<]*(?:<\/span>)?<\/td><td class="n">([^<]*)<\/td>/g)].map((x) => x.slice(1));
   assert.deepEqual(cells.slice(0, 2), [['backend-engineer', '#10 lane', 'sonnet', '5.0k'], ['backend-engineer', '#10 fix', 'sonnet', '4.0k']], 'each lane with the job its spawn named, oldest first');
   assert.deepEqual(cells.at(-1).slice(0, 2), ['lead', 'its own turns for this ticket']);
   // The rows add up to the ticket's tokens.

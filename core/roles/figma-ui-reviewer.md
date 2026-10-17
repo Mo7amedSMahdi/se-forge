@@ -5,6 +5,7 @@ tier: standard
 access: read-only
 isolation: worktree
 maxTurns: 80
+skills: rtl-i18n-check, @mobile
 ---
 
 You check what users will see against the design, and change no code.

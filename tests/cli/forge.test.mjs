@@ -23,7 +23,8 @@ function kitRepo(base) {
   sh(dir, 'git', 'add', '.'); sh(dir, 'git', 'commit', '-q', '-m', `kit ${VERSION}`); sh(dir, 'git', 'tag', `v${VERSION}`);
   fs.writeFileSync(path.join(dir, 'VERSION'), '9.9.0\n');
   const planner = path.join(dir, 'core/roles/planner.md');
-  fs.writeFileSync(planner, fs.readFileSync(planner, 'utf8').replace('You are the **planner**', 'You are the **planner** (kit 9.9.0)'));
+  // The next version drops a skill, and with it the planner's preload of it (decision 137), as a real version would.
+  fs.writeFileSync(planner, fs.readFileSync(planner, 'utf8').replace('You are the **planner**', 'You are the **planner** (kit 9.9.0)').replace(/^(skills: .*?), figma-align/m, '$1'));
   fs.rmSync(path.join(dir, 'core/skills/figma-align'), { recursive: true });
   sh(dir, 'git', 'commit', '-q', '-am', 'kit 9.9.0'); sh(dir, 'git', 'tag', 'v9.9.0');
   return dir;
@@ -136,6 +137,32 @@ test('sync is idempotent and overrides in the team repo win', () => {
   assert.equal(roles['rtl-checker'], 'read-only', 'the policy learns the access of override roles');
   assert.equal(gitClean(w.client), '');
   assert.equal(w.forge(['sync']).code, 0, 'a second sync changes nothing');
+});
+
+test('sync writes each agent\'s preloaded skills, with the guides of the project\'s stack (decision 137)', () => {
+  const w = world();
+  w.ready();
+  const pj = path.join(w.team, 'acme-portal/project.json');
+  const config = JSON.parse(fs.readFileSync(pj, 'utf8'));
+  config.project.stack = { ...config.project.stack, backend: 'NestJS 11', frontend: 'React 19', database: 'PostgreSQL 16' };
+  fs.writeFileSync(pj, `${JSON.stringify(config, null, 2)}\n`);
+  const kitDir = path.join(w.team, 'acme-portal/kit');
+  fs.mkdirSync(path.join(kitDir, 'skills/acme-deploy'), { recursive: true });
+  fs.writeFileSync(path.join(kitDir, 'skills/acme-deploy/SKILL.md'), '---\nname: acme-deploy\ndescription: Acme deploy notes\n---\nNotes.\n');
+  fs.mkdirSync(path.join(kitDir, 'roles'), { recursive: true });
+  fs.writeFileSync(path.join(kitDir, 'roles/acme-deployer.md'), '---\nname: acme-deployer\ndescription: Deploys Acme\ntier: standard\naccess: code\nskills: acme-deploy, @backend\n---\nDeploy.\n');
+  const r = w.forge(['sync']);
+  assert.equal(r.code, 0, r.out);
+  const agent = (name) => fs.readFileSync(path.join(w.client, `.claude/agents/${name}.md`), 'utf8').split('\n---\n')[0];
+  assert.match(agent('backend-engineer'), /\nskills:\n  - stack-nestjs\n  - db-postgresql\n  - new-endpoint$/);
+  assert.match(agent('code-reviewer'), /\nskills:\n  - stack-nestjs\n  - stack-react\n  - db-postgresql$/);
+  assert.match(agent('acme-deployer'), /\nskills:\n  - acme-deploy\n  - stack-nestjs$/, 'a project\'s own role preloads its own skill');
+  // A typo in a project's role stops the sync with the reason, and leaves the agents as they were.
+  fs.writeFileSync(path.join(kitDir, 'roles/acme-deployer.md'), '---\nname: acme-deployer\ndescription: Deploys Acme\ntier: standard\naccess: code\nskills: acme-deplo\n---\nDeploy.\n');
+  const bad = w.forge(['sync']);
+  assert.notEqual(bad.code, 0);
+  assert.match(bad.out, /skills names acme-deplo, which is not a skill/);
+  assert.match(agent('acme-deployer'), /  - acme-deploy\n/);
 });
 
 test('sync refuses to overwrite a generated file edited in place, and a client file with the same name', () => {
