@@ -89,7 +89,7 @@ flowchart TD
   class A,B,C1,C2,C3,C4,D1a,D7,D9,Q1,K1,G1,FU,F1,F2,S1,S2,S3,S4,L2,E6P you
 ```
 
-Questions about security or architecture always wait for you. When you can't be reached, other questions go ahead on the planner's recommended answer, and the plan records it. A ticket never loops for ever: at its limit it is parked until you decide. For an existing system, reading it into documents (`/onboard`) and change requests (`/change`) come next; until then you put its tickets on the board (part F).
+Everything the kit needs from you comes as choices, in every phase: pick one (A, B, C, the recommended one first), tick any (`[ ]`), yes or no, or your own words when nothing fits. In the session you click or type a number; in a report you reply like `1A 2B 3[31]` (decision 136). Questions about security or architecture always wait for you. When you can't be reached, other questions go ahead on the planner's recommended answer, and the plan records it. A ticket never loops for ever: at its limit it is parked until you decide. For an existing system, reading it into documents (`/onboard`) and change requests (`/change`) come next; until then you put its tickets on the board (part F).
 
 ---
 

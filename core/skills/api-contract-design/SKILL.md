@@ -24,4 +24,4 @@ Never edit the repo's spec to make an implementation pass, and never tag.
 - the draft is in `.forge/project/contracts/` with a raised `info.version`;
 - `forge api check --spec <draft>` passes, or its only finding is an expected breaking change with a new major version;
 - the plan's `Contract:` line is `pending (<draft>, version <x.y.z>)` and holds the change summary and consumer migration;
-- the owner has been told what to approve; nothing was edited in the repo's spec and nothing was tagged.
+- the owner has been told what to approve, as a choice (skill `ask-owner`); nothing was edited in the repo's spec and nothing was tagged.

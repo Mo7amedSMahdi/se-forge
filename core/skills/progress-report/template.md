@@ -13,8 +13,13 @@ Issues: <the Issues line as printed>
 - #<id> <title>: <its step, from the plan's status line>; <time so far> (<where it went>)
 
 ## Needs the owner
-- #<id>: <the question, approval or merge that waits for a person, and since when>
-- Follow-ups: <n> open. Join after the build by themselves: #<ids> (P1/P2 inside the register). Wait for you: #<ids> (P3, new scope or kit fixes): which of them join?
+1. #<id>: <the question, approval or merge that waits for a person, in one line> (since <when>)
+   A. <the recommended answer> (recommended)
+   B. <another answer>
+2. Follow-ups that wait for you: which join the build? (<n> open; #<ids> join by themselves, P1/P2 inside the register)
+   [ ] #<id> <title> (<P3 | new scope | kit fix>)
+   [ ] #<id> <title> (<…>)
+Reply like 1A 2[#id], or in your own words.
 
 ## Look at
 - <each line from "Look at", and what the lead does about it>

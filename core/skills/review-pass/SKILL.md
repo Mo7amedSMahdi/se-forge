@@ -32,5 +32,5 @@ Ticket and branch: **$ARGUMENTS**
 
 ## Done when
 - every reviewer the plan calls for has written its report in `.forge/project/reviews/<ticket>/`, starting with `Verdict:` and `Commit:` (`forge merge` reads them);
-- no report has an unresolved blocker, or the owner was asked after two rounds;
+- no report has an unresolved blocker, or the owner was asked after two rounds, as a choice (skill `ask-owner`);
 - the reports record how each finding was resolved: fixed, filed as a follow-up (with its issue id), or left in the report.

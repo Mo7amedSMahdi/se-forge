@@ -16,7 +16,7 @@ The goal: after this interview, agents can answer their own questions from the r
    - database: PostgreSQL, SQL Server, MySQL/MariaDB or MongoDB.
 3. **Get the answers**:
    - With `--answers <file>` (the owner or the client filled the questionnaire in), read it and ask only what is still blank or contradictory.
-   - Otherwise ask the owner in rounds (AskUserQuestion), up to 4 related questions per round, recommended option first.
+   - Otherwise ask the owner in rounds (AskUserQuestion, skill `ask-owner`), up to 4 related questions per round, 2 to 4 options each, recommended option first.
    - Questions about security, the stack or the architecture never take a default: they wait for the owner.
 4. **Write the register**: `.forge/project/bootstrap/decisions.md`, from `register.md` in this skill's folder. One row per decision (`D-001`, …) with its category, the decision, its source (owner and date, questionnaire, or requirements page) and what it means for the agents. List the approved libraries per stack, the security rules per feature, and anything still open.
 5. **Check coverage**:

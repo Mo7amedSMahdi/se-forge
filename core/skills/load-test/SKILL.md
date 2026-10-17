@@ -25,7 +25,7 @@ runs it against the running stack, and checks that a threshold the API cannot me
 3. `docker compose up -d --build --wait` (the branch's code), then `docker compose --profile perf run --rm -T k6 run /perf/<flow>.js > /tmp/k6.log 2>&1`. Exit code 0: every threshold met; 99: a threshold failed; other: the script failed.
 4. Read the end-of-test summary (`tail -60 /tmp/k6.log`): each threshold's result and the p95 per flow.
 5. Write `.forge/project/reviews/<ticket>/load.md` in your worktree (the hook copies it to the main checkout when you finish), starting with `Verdict: PASS` or `Verdict: FAIL` and `Commit: <git rev-parse HEAD>` (`forge merge` reads both): the script, the scenario, a table flow → target → measured p95 → error rate, and the machine (local Docker; numbers compare only with runs on the same machine).
-6. A failed threshold is a finding for the engineer (the performance reviewer names the cause); never relax a threshold to pass. A target that proves unrealistic goes to the owner with the numbers.
+6. A failed threshold is a finding for the engineer (the performance reviewer names the cause); never relax a threshold to pass. A target that proves unrealistic goes to the owner with the numbers, as a choice (skill `ask-owner`).
 
 ## Done when
 - the script covers the plan's flows, with thresholds equal to the targets and checks on every response;

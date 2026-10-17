@@ -334,7 +334,8 @@ export function sessionStart(input, env) {
   if (['clear', 'compact', 'resume'].includes(input.source)) head.unshift(`RESUME (${input.source}): read the newest handover, check git status and the branch, then carry on from "Remaining".`);
   const changed = kitChange(ctx);
   if (changed) head.unshift(changed);
-  const text = [head.join('\n'), readKitFile('core/AGENTS.md').trim(), projectRules(ctx), projectFacts(ctx)].filter(Boolean).join('\n\n');
+  // The main session also gets the lead's own rules: how it asks the owner (decision 136). Lanes never do.
+  const text = [head.join('\n'), readKitFile('core/AGENTS.md').trim(), readKitFile('core/LEAD.md').trim(), projectRules(ctx), projectFacts(ctx)].filter(Boolean).join('\n\n');
   return { hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: text } };
 }
 

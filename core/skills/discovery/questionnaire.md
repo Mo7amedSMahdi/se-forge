@@ -1,5 +1,5 @@
 # Discovery questionnaire: <project>
-For <owner/client>. Each question: what the requirements say, the options, our recommendation. Write your answer under it; leave "recommended" to accept our default (not possible for security, stack and architecture questions).
+For <owner/client>. Each question: what the requirements say, then the options lettered A, B, C with our recommendation first. Mark one (`[x] B`), or write your own under it; leave it unmarked to accept the recommendation (not possible for security, stack and architecture questions).
 
 ## 1. Users and roles
 Who uses the product; every role and what it may and may not do; sign-up and invitation; who administers users.

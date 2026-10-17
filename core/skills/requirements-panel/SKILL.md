@@ -16,7 +16,7 @@ Decision 114. The point is to find now what the build would otherwise find later
 3. **Read the reports** in `.forge/project/bootstrap/panel/`, not what the seats said in chat.
 4. **Decide each finding** and write `.forge/project/bootstrap/panel/summary.md` from `summary.md` in this folder. Merge the findings two seats raised, keeping both ids.
    - **apply**: it fits the requirements and the register (a gap, a contradiction, an untestable criterion, a missing operation, a wrong order, a ticket too large);
-   - **owner**: it needs a decision the register does not hold (new scope, a register decision to revisit, two seats that disagree). Write the options, each seat's view and your recommendation;
+   - **owner**: it needs a decision the register does not hold (new scope, a register decision to revisit, two seats that disagree). Write it as a choice (skill `ask-owner`): lettered options with your recommendation first, and each seat's view in a few words;
    - **reject**: it is wrong, already covered, or out of scope; one line on why, which the owner sees.
 
    A must that fits the register is applied. A should or a note is applied when it is cheap and inside the register; otherwise it goes to the owner or is rejected with the reason.

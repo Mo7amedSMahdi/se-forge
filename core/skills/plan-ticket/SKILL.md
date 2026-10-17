@@ -31,7 +31,7 @@ E2E: <the user flow the end-to-end tests cover> | not applicable (<reason>)
 Repo: <the system's repository it changes> (a system only, decisions 130-131: one ticket, one repository)
 Branch: `feat|fix|chore/<id>-<slug>`
 Gates: none | security (auth, permissions, payments or personal data) | architecture (stack or structure) | performance (a flow with a latency or load target: k6 and the performance review)
-**To review: the questions in section 6.** Each has its recommended answer in **bold**, and "go with defaults" answers them all, except a question on a gate, which a person always decides.
+**To review: the questions in section 6.** Each has lettered options with the recommended one first in **bold** (skill `ask-owner`); "1A 2B" answers them, and "go with defaults" answers them all, except a question on a gate, which a person always decides.
 Sources: ticket #<id> · story <E<n>-S<n>, pages> · Figma <node ids> · contract <operation names> · patterns <files>
 
 ## 1. How the sources line up
@@ -48,7 +48,7 @@ The designer draws these later.
 ## 4. Tests and gates   (the gate command)
 ## 5. Risks; the files of other agents, which this ticket stays out of
 ## 6. Open questions and conflicts
-Each question with its recommended answer in bold; each conflict with its Issues-board Task id.
+Numbered questions, each with options A, B (C, D) in one line apiece, the recommended one first in bold; a gate question says it waits for a person. Each conflict with its Issues-board Task id.
 ## Estimate   (skill `estimate`: hours per item, low and high, the main risk, the total)
 ## 7. Done and remaining   (the lead updates it from the lanes' reports)
 Review and QA reports live in `.forge/project/reviews/<ticket>/`, not in the plan.

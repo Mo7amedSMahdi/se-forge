@@ -16,7 +16,7 @@ the tag and the notes.
    - a breaking change (`!` after the type, or a `BREAKING CHANGE:` footer): major (minor while the version is 0.x);
    - otherwise any `feat`: minor; otherwise any `fix` or `perf`: patch;
    - only `docs`, `test`, `chore`, `ci`, `style`, `refactor`: no release is needed; say so and stop unless the owner wants one (patch).
-   - The first release: the owner chooses `v0.1.0` (not live yet) or `v1.0.0` (at launch).
+   - The first release: the owner chooses, as a choice (skill `ask-owner`): `A. v0.1.0` (not live yet) or `B. v1.0.0` (at launch).
 3. **The CHANGELOG section** at the top of `CHANGELOG.md` (create it with the heading `# Changelog` when missing): `## [X.Y.Z] - YYYY-MM-DD`, then `### Added` (feat), `### Fixed` (fix), `### Changed` (perf, refactor, and breaking changes first, marked **Breaking:** with what users must do). One line per change in the users' words, with its ticket (`#12`); leave out tests, CI and chores.
 4. **The release branch:** `chore/release-vX.Y.Z` from `origin/dev` with the CHANGELOG commit (`chore(release): vX.Y.Z`), pushed, and a merge request into `dev`. A person merges it.
 5. **The promotions**, after that merge: a merge request `dev` → `staging`, and after the person merges and checks it, `staging` → `main`. Each description: the version, the CHANGELOG section, the tickets, the migrations included (expand/contract steps, decision 65), the new environment variables (names only). The `staging` → `main` description ends with one `Closes #<id>` line per ticket of the release that is still open (`forge tracker get <id>`), so the host closes them when it merges into `main`, the default branch (decision 117).

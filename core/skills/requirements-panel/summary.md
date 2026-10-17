@@ -8,10 +8,10 @@ Findings: <n> (must <n>, should <n>, note <n>) · applied <n> · for the owner <
 | <BE2, DB1> | <E2-S1> | <the change> | <contract, ticket drafts> | <yes, or what is left> |
 
 ## For the owner
-### <Id(s)>: <the decision in one line>
-- Options: <each option, one line>
-- Seats: <seat: its view, one line each>
-- Recommendation: <yours, and why>
+### <n>. <Id(s)>: <the decision in one line>
+A. <the recommended option> (recommended): <why, in a few words>
+B. <another option>
+Seats: <seat: its view, a few words each>
 
 ## Rejected
 | Id | Why |

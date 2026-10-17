@@ -8,7 +8,8 @@ Seen: #<id>@<updatedAt>, …
 - #<id> <title> — breaks <AC/operation> of #<ticket>
 
 ## Needs a person
-- #<id> <title> — <new feature | scope change | follow-up that waits for the owner | no acceptance criteria | conflicts with D-<n>>
+1. #<id> <title> — <new feature | scope change | follow-up that waits for the owner | no acceptance criteria | conflicts with D-<n>>
+   A. <the recommended choice, e.g. Add it to the build> (recommended) · B. <e.g. After the release> · C. <e.g. Close it>
 
 ## Follow-ups (decision 119)
 - #<id> <title> — P<1|2|3>, <D-ids | new scope | kit fix>, areas <…>; after the build: <joins | waits for the owner>

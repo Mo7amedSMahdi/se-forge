@@ -12,7 +12,7 @@ One Node.js program (22+, no dependencies) that Claude Code runs as a hook on ev
 | `post-tool-use` | Runs the project's format, lint and type-check rules on an edited file and hands failures back to the agent; counts lane calls and edits, warns past the budget line, records human approvals. |
 | `subagent-start` | Injects `core/AGENTS.md`, `core/LANES.md` and the project facts into every lane, also inside a worktree. |
 | `subagent-stop` | Copies the documents a lane wrote in its own worktree to the main checkout (Claude Code lets a worktree agent write only there): handovers from every lane, reports from reviewers and QA, `.forge/project/` documents from docs-only roles, never `project.json` or the kit overrides, and never over a newer copy (decision 92). Then an engineer lane may only finish with green gates. |
-| `session-start` | Injects `core/AGENTS.md` and the project facts, plus budgets, pending handovers and configuration problems (each injection stays under the 10,000-character hook limit). |
+| `session-start` | Injects `core/AGENTS.md`, `core/LEAD.md` (the main session's rules: how it asks the owner, decision 136) and the project facts, plus budgets, pending handovers and configuration problems (each injection stays under the 10,000-character hook limit). |
 | `stop` | The lead's turn ends: sends it back once to `forge save` when the team repo has unsaved plans or reports. |
 | `post-tool-use-failure`, `user-prompt-submit`, `pre-compact`, `post-compact`, `session-end`, `stop-failure`, `permission-denied` | Write the timeline only, and print nothing. |
 | `gates` | Not a hook: runs the done check on the current branch by hand. |

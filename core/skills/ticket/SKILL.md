@@ -19,11 +19,11 @@ You are the author: you plan and build. Reviewers are separate, read-only agents
 
 ## 2. Plan (skill `plan-ticket`, then `estimate`)
 - Write `.forge/project/plans/<ticket>-<slug>.md` with its `Branch:` and `Gates:` lines, items, tests and questions.
-- Ask the owner the open questions once (AskUserQuestion, all in one message). A question on a gate (security, architecture) waits for the owner; never take its default.
+- Ask the owner the open questions once (AskUserQuestion, all in one message, as choices: skill `ask-owner`). A question on a gate (security, architecture) waits for the owner; never take its default.
 - The hook asks a human before you change security-sensitive paths on this branch.
 
 ## 3. Build
-**Contract first.** If the plan's `Contract:` is `pending`, draft the change (skill `api-contract-design`) and stop: tell the owner the draft's path and summary. A person puts it in its own merge request, merges it and tags it; then run `/ticket <id>` again. Database items may be built meanwhile.
+**Contract first.** If the plan's `Contract:` is `pending`, draft the change (skill `api-contract-design`) and stop: tell the owner the draft's path and summary, then `A. Approved: I merged and tagged it · B. Change it (say what)`. A person puts it in its own merge request, merges it and tags it; then run `/ticket <id>` again. Database items may be built meanwhile.
 
 1. `git switch -c <branch> origin/<base branch>` (or `git switch <branch>` if it exists).
 2. Work through the plan's items in the order db → api → ui → mobile, using the skills for each (`db-migration`, `new-endpoint`, `api-sync`; for mobile items `new-screen`, `flutter-form`, `write-flutter-tests`).

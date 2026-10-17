@@ -19,6 +19,15 @@ for (const name of fs.readdirSync(SKILLS).sort()) {
   });
 }
 
+// Decision 136: a skill that asks the owner points to the choices format, so no skill asks in long prose.
+test('every skill that asks the owner with AskUserQuestion follows skill ask-owner', () => {
+  const asking = fs.readdirSync(SKILLS).filter((name) => /AskUserQuestion/.test(fs.readFileSync(path.join(SKILLS, name, 'SKILL.md'), 'utf8')));
+  assert.ok(asking.length >= 5, `only ${asking.length} skills ask the owner`);
+  for (const name of asking.filter((n) => n !== 'ask-owner')) {
+    assert.match(fs.readFileSync(path.join(SKILLS, name, 'SKILL.md'), 'utf8'), /skill `ask-owner`/, `${name} asks the owner without skill ask-owner`);
+  }
+});
+
 // The stack guides' examples are copies of the samples that tests/stacks/run.sh verifies; they must not drift.
 const STACKS = path.resolve(SKILLS, '../../tests/stacks');
 const COPIES = {

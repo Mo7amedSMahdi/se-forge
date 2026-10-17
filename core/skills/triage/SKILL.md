@@ -17,9 +17,9 @@ description: The project-manager's procedure - find new and changed issues on th
    - **Stuck:** In Progress or In Testing with no update for more than 2 working days, or blocked by an open issue.
    - **Follow-ups** (decision 119): a kit fix (the change is to the forge kit or the team's process, not this project's code) or new scope never joins by itself. Write each follow-up under "Follow-ups": joins after the build when it is P1 or P2 and the register covers it, otherwise waits for the owner.
 3. **Comment** the triage on each issue, in one short block: `forge tracker comment <id> "Triage (project-manager): type …, areas …, priority …, …"`.
-4. **Ready**, for bugs only. Mark it with `forge tracker ready <id> --comment "Breaks AC<n> of #<ticket> (approved)"` when the bug names an approved acceptance criterion or contract operation it breaks and has steps to reproduce. Everything else, features and scope changes included, goes to "Needs a person" in the digest. Never mark your own new ideas.
+4. **Ready**, for bugs only. Mark it with `forge tracker ready <id> --comment "Breaks AC<n> of #<ticket> (approved)"` when the bug names an approved acceptance criterion or contract operation it breaks and has steps to reproduce. Everything else, features and scope changes included, goes to "Needs a person" in the digest, each with the choices the owner has (skill `ask-owner`). Never mark your own new ideas.
 5. **Digest**: write `.forge/project/pm/digest-<YYYY-MM-DD-HHmm>.md` (with the Write tool) from `template.md` in this skill's folder. Keep the template's headings exactly: the leader reads its sections by name. Return its short form (at most 10 lines) to the leader.
-6. **Daily summary**: at the first digest after 17:00, or when the leader asks, write `.forge/project/pm/daily-<YYYY-MM-DD>.md` for the owner: done today, in progress, blocked (and on whom), new issues, decisions needed.
+6. **Daily summary**: at the first digest after 17:00, or when the leader asks, write `.forge/project/pm/daily-<YYYY-MM-DD>.md` for the owner: done today, in progress, blocked (and on whom), new issues, and the decisions needed as choices (skill `ask-owner`).
 
 ## Done when
 - every new or changed issue has a triage comment;

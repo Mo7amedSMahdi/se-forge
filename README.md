@@ -16,6 +16,8 @@ also work in an existing system of several repositories.
   flows, a security review against OWASP ASVS, decision records, containers and CI from day one.
 - **Nothing in the client's repository.** The kit lives beside the code, hidden from git; plans, reviews and
   settings go to a private team repository.
+- **Decisions in a few keystrokes.** Whatever needs you comes as choices: pick one (A, B, C), tick any ([ ]),
+  yes or no, or your own words when nothing fits. You reply `1A 2B`, not an essay.
 - **You see where it goes.** Every step is recorded: a local dashboard shows time, waits for you, tokens and cost
   per ticket and per agent, the architecture, the screens, and a forecast of the finish.
 
@@ -133,11 +135,11 @@ flowchart TD
 The author of a change never reviews it. Reviewers are read-only; planners and analysts write documents only.
 Each project maps the tiers to models in `project.json`, and the engineers always run on their tier.
 
-### 65 skills
+### 66 skills
 The playbooks the agents follow: the lead's `pipeline`, `bootstrap` (discovery, stories, architecture, screens,
 contract, tickets, the requirements panel), `plan-ticket`, `review-pass`, `write-e2e`, `threat-model`,
-`api-contract-design`, `db-migration`, `figma-align`, `release`, `handover`, `progress-report` and more, plus a
-guide per stack. See `core/skills/`.
+`api-contract-design`, `db-migration`, `figma-align`, `release`, `handover`, `progress-report`, `ask-owner` (every
+question to you as a choice) and more, plus a guide per stack. See `core/skills/`.
 
 ### The safety layer
 Claude Code hooks (`core/policy/`, Node 22, no dependencies) parse every command, through wrappers and

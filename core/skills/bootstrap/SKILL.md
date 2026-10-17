@@ -9,7 +9,7 @@ argument-hint: "<requirements files> [--answers <filled questionnaire>] [--skip-
 
 Requirements and options: **$ARGUMENTS**
 
-You are the leader (decisions 42-49). You run the stages in order and never write stories, designs or contracts yourself: you spawn the agents, check each result against the decision register, and keep `.forge/project/bootstrap/README.md` current (stage, date, artefact paths). The stages run one after the other: spawn each stage's agent in the foreground and wait for its result before the next stage (only reviewers run in the background). After discovery nothing stops for the owner until the single review in stage 8. A gap the register does not answer is the one exception: one question round with the owner, recorded in the register.
+You are the leader (decisions 42-49). You run the stages in order and never write stories, designs or contracts yourself: you spawn the agents, check each result against the decision register, and keep `.forge/project/bootstrap/README.md` current (stage, date, artefact paths). The stages run one after the other: spawn each stage's agent in the foreground and wait for its result before the next stage (only reviewers run in the background). After discovery nothing stops for the owner until the single review in stage 8. A gap the register does not answer is the one exception: one question round with the owner, recorded in the register. Every question to the owner is a choice (skill `ask-owner`).
 
 ## 1. Discovery (skill `discovery`)
 The interview and `.forge/project/bootstrap/decisions.md`. The project settings it writes (stack, database, design source, approved libraries) ask the owner once.
@@ -43,7 +43,7 @@ Write `.forge/project/bootstrap/review.md`:
 - the tickets in order, with estimates and the total;
 - every contradiction between these artefacts and the register.
 
-Ask the owner once: approve, or name what to change. A change reruns only the affected stage, then this review again.
+Ask the owner once, with AskUserQuestion (skill `ask-owner`): the panel's open decisions as questions with their options, your recommendation first, then `A. Approve everything · B. Change something (say what)`. A change reruns only the affected stage, then this review again.
 
 ## 9. After approval
 1. **Architecture.** On branch `chore/architecture`, copy the overview and diagrams to `docs/architecture/` and the accepted ADRs (status `accepted`, today's date) to `docs/adr/`; committing ADRs asks the owner. Commit, push, open its merge request; the owner merges it.

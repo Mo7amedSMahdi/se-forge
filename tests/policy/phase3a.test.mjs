@@ -38,6 +38,10 @@ test('session and lane injections carry the rules and facts within the 10,000 ch
   }
   assert.match(lane, /# Rules for spawned agents/);
   assert.doesNotMatch(lead, /# Rules for spawned agents/);
+  // Only the main session asks the owner, so only it gets the lead's rules (decision 136).
+  assert.match(lead, /# Rules for the main session \(the lead\)/);
+  assert.match(lead, /AskUserQuestion\. Up to 4 questions per call/);
+  assert.doesNotMatch(lane, /# Rules for the main session/);
 });
 
 test("a Figma file without a tool prefix gets the names of Figma's Claude Code plugin", () => {

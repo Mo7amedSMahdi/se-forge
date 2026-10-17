@@ -19,7 +19,7 @@ Onboarding changes nothing in the client's code: it records what is there and fi
 3. **The register:** write `.forge/project/bootstrap/decisions.md` (skill `discovery`'s format) with the existing choices as decisions marked `existing`, so agents follow them; questions the code cannot answer go to the owner.
 4. **Settings:** match the stack to a stack guide (`stack-*`, `db-*`) and write the proposal `.forge/project/bootstrap/project.proposed.json` from its `project.json` snippet, adapted to the repository's paths (folders, `dir` per service); `forge config check` it; applying it asks the owner.
 5. **Gaps:** compare with the team's decisions and the guides (dev containers and the gate inside them, the CI template, a `dev` target, health route, problem details, tests per side, contract first, branches). File one ticket per gap, ordered by risk (`[Follow-up]`, `--source ai`, skill `report-issue`); none of them is fixed during onboarding.
-6. **Report** to the owner: the stack, what works, the gaps and their tickets, the open questions; then `forge save`.
+6. **Report** to the owner: the stack, what works, the gaps and their tickets in a few lines, then the open questions as choices (skill `ask-owner`); then `forge save`.
 
 ## Done when
 - `forge doctor` is green or its warnings are listed in the report;

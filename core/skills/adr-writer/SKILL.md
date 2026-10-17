@@ -26,7 +26,7 @@ deviation from a team decision. Not for a choice a single file contains.
    - **More Information**: when to revisit, links.
    Remove the template's comments and every optional section you do not fill.
 3. **Check:** `forge docs check .forge/project/architecture/adr/<file>`.
-4. **Decision:** the record goes to the owner (in the bootstrap's single review, or as a `Gates: architecture` question): options, your recommendation, the consequences. Their answer sets `status: accepted` or `rejected`, and the `date`.
+4. **Decision:** the record goes to the owner (in the bootstrap's single review, or as a `Gates: architecture` question): the options as a choice with your recommendation first (skill `ask-owner`), and the consequences. Their answer sets `status: accepted` or `rejected`, and the `date`.
 5. **Into the repository:** the lead copies accepted records to `docs/adr/` on a `chore/adr-<number>` branch with its merge request; committing them asks a person, who merges it.
 6. **Changing a decision later:** never rewrite an accepted record. Write a new one, and set the old one's status to `superseded by ADR-<new number>` in the same merge request.
 

@@ -8,6 +8,9 @@ A project pins an exact version in its `project.json`; `forge upgrade --to <vers
 
 ## [Unreleased]
 
+### Added
+- Every question, approval or action the kit needs from the owner comes as a short choice, in every phase: pick one (lettered, the recommended first), tick any (`[ ]`), yes/no, or free text only when nothing fits. The lead asks with AskUserQuestion in the session, and written lists (progress report, board digest, plan questions, panel summary) number the questions so the owner replies `1A 2B`. New `core/LEAD.md`, injected into the main session only, and skill `ask-owner` with the formats; the pipeline, bootstrap, discovery, progress report, triage, plan, panel, spec, ticket, release, onboarding and architecture skills and `/next-ticket` follow it (decision 136).
+
 ## [0.2.31] - 2026-10-16
 
 ### Changed
