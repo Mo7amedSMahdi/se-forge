@@ -122,7 +122,7 @@ op_columns() {
   done
 }
 
-# op_column <status>: the board column a status belongs in; a column with the status's own name comes first.
+# op_column <status>: the board column a status belongs in; a status not listed goes to the column of its own name.
 # Nothing for Todo and Ready for Development, so a card the owner placed by hand stays where it is.
 op_column() {
   case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
