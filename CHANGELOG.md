@@ -8,6 +8,18 @@ A project pins an exact version in its `project.json`; `forge upgrade --to <vers
 
 ## [Unreleased]
 
+### Added
+- **OpenProject tracker adapter** (`core/tracker/adapters/openproject.sh`): `project.tracker: "openproject"` runs every
+  `forge tracker` command against OpenProject's REST API v3 with curl and jq. Settings by name: `OPENPROJECT_URL`,
+  `OPENPROJECT_API_KEY`, `OPENPROJECT_PROJECT`, optional `OPENPROJECT_BOARD` (a basic board whose columns `list board`
+  shows and `status` keeps in step) and `OPENPROJECT_READY_STATUS`. The API key reaches curl on a file descriptor,
+  never in its arguments. OpenProject has no labels: `--source`/`--area`/`--repo` go into a `Labels:` line.
+- `forge init --tracker openproject`; `project.tracker` is validated (gitlab, github or openproject); `forge doctor`
+  checks curl, jq and that the three required `OPENPROJECT_*` names are set.
+
+### Changed
+- The dashboard has no issue history for OpenProject (it says so) and links a ticket only to the address the tracker gave.
+
 ## [0.2.35] - 2026-10-22
 
 ### Fixed

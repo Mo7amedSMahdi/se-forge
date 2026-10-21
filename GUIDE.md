@@ -237,6 +237,26 @@ succeed".
    glab auth login --hostname gitlab.example.com
    ```
    Paste the token when it asks, and choose **SSH** as the git protocol. `glab auth status` should show ✓.
+
+   **A project whose tickets live in OpenProject** (`project.tracker` is `"openproject"`) also needs, on each Mac:
+   - **An API token:** in OpenProject, your avatar → **My account** → **Access tokens** → **API** → generate one and
+     copy it (it is shown once).
+   - **The project identifier:** the part after `/projects/` in the project's address
+     (`https://openproject.example.com/projects/<identifier>/…`). The numeric id or the pasted address also work.
+   - **The board id** (optional): open the project's basic board; its address ends in `/projects/<identifier>/boards/<id>`.
+     With it, `forge tracker list board` shows the board's columns and a status change moves the card to its column.
+   - **The variables**, in `~/.zshrc` (then open a new terminal); never in a repository:
+     ```
+     export OPENPROJECT_URL="https://openproject.example.com"
+     export OPENPROJECT_API_KEY="<the token>"
+     export OPENPROJECT_PROJECT="<identifier>"
+     export OPENPROJECT_BOARD="<board id>"            # optional
+     export OPENPROJECT_READY_STATUS="Todo"           # optional: the status `forge tracker list ready` reads
+     ```
+   - In the team repo, the project's `project.json` says `"tracker": "openproject"` under `"project"` (or
+     `forge init --project <slug> --new --tracker openproject`). `brew install curl jq` if `forge doctor` asks for them;
+     `forge doctor` checks the three required names are set (never their values), and `forge tracker statuses` lists
+     the project's statuses and types.
 6. **Get the team repo:**
    ```
    mkdir -p ~/code && cd ~/code
