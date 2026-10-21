@@ -1,31 +1,61 @@
 #!/usr/bin/env bash
 # OpenProject, through its REST API v3 (curl + jq). Set project.tracker to "openproject" to use it.
-# Reads, by name only, from the environment (export them in the shell profile):
-#   OPENPROJECT_URL           e.g. https://openproject.example.com (no trailing slash needed)
-#   OPENPROJECT_API_KEY       My account > Access tokens > API
-#   OPENPROJECT_PROJECT       the project identifier (from the URL /projects/<identifier>), its numeric id,
-#                             or the pasted project URL
-#   OPENPROJECT_READY_STATUS  optional: the status `ready` moves a ticket to and `list ready` reads (default "Todo")
-#   OPENPROJECT_BOARD         optional: the id of a basic board (/boards/<id>) whose columns are kept in step
+# Settings, from project.json's project.openproject (forge passes them; a variable already set wins):
+#   OPENPROJECT_URL           url: e.g. https://openproject.example.com (no trailing slash needed)
+#   OPENPROJECT_PROJECT       project: the identifier (from /projects/<identifier>), its numeric id, or the pasted URL
+#   OPENPROJECT_BOARDS        boards: "name=id,name=id", the basic boards (/projects/<identifier>/boards/<id>)
+#   OPENPROJECT_BOARD         defaultBoard (or board): the board id used when no --board is given
+#   OPENPROJECT_READY_STATUS  readyStatus: the status `ready` moves a ticket to and `list ready` reads (default "Todo")
+# The API key is never in project.json: openproject-key.sh finds it (environment, macOS Keychain, Linux keyring,
+# or a private file) and it goes to curl through a config file descriptor, never in an argument or in output.
 # - A ticket is a work package; its status and type are OpenProject's own. Done, Closed and Resolved are
 #   ordinary statuses there (OpenProject closes by status), so `status <id> Closed` is enough.
 # - OpenProject has no labels: --source/--area/--repo go into a "Labels:" line at the end of the description.
-# - A basic board's columns are hand-ordered lists, not statuses. With OPENPROJECT_BOARD set, `list board`
-#   shows its columns, `status` also moves the card to the column for the new status (op_column), and
-#   `create --column` puts the new card in that column. Without it, `list board` groups by status and
-#   --column becomes the status when one with that name exists.
-# The API key goes to curl through a config file descriptor, never in an argument or in output.
+# - A basic board's columns are hand-ordered lists, not statuses. `list board [<name|id|all>]` shows a board's
+#   columns; `status` moves the card on every configured board it sits on (op_place); `create --board X --column Y`
+#   puts the new card on board X. With no board configured, `list board` groups by status, `status` changes only
+#   the status, and --column becomes the status when one with that name exists.
 tk_need curl openproject
 tk_need jq openproject
 
-for v in OPENPROJECT_URL OPENPROJECT_API_KEY OPENPROJECT_PROJECT; do
-  if [[ -z "${!v:-}" ]]; then echo "tracker(openproject): $v is not set (export it in your shell profile)" >&2; exit 2; fi
+for v in OPENPROJECT_URL OPENPROJECT_PROJECT; do
+  if [[ -z "${!v:-}" ]]; then echo "tracker(openproject): $v is not set (project.openproject in project.json; see GUIDE.md, Configuration)" >&2; exit 2; fi
 done
+# shellcheck source=../openproject-key.sh
+. "$(dirname "${BASH_SOURCE[0]}")/../openproject-key.sh"
+op_find_key || exit 2
 op_base="${OPENPROJECT_URL%/}/api/v3"
 # Accept a pasted project URL or path as well as the bare identifier.
 OPENPROJECT_PROJECT="${OPENPROJECT_PROJECT##*/projects/}"; OPENPROJECT_PROJECT="${OPENPROJECT_PROJECT%%/*}"
 op_ready="${OPENPROJECT_READY_STATUS:-Todo}"
-op_board="${OPENPROJECT_BOARD:-}"
+
+# op_boards: "<name>\t<id>" per configured board, the default board included (named "default" when not in the map).
+op_boards() {
+  local pair pairs=() seen=" "
+  IFS=',' read -ra pairs <<<"$(printf '%s' "${OPENPROJECT_BOARDS:-}" | tr -d ' ')"
+  for pair in ${pairs[@]+"${pairs[@]}"}; do
+    [[ "$pair" == *=* && "${pair#*=}" =~ ^[0-9]+$ && "$seen" != *" ${pair#*=} "* ]] || continue
+    seen+="${pair#*=} "; printf '%s\t%s\n' "${pair%%=*}" "${pair#*=}"
+  done
+  [[ ! "${OPENPROJECT_BOARD:-}" =~ ^[0-9]+$ || "$seen" == *" $OPENPROJECT_BOARD "* ]] || printf 'default\t%s\n' "$OPENPROJECT_BOARD"
+}
+# op_default_board: OPENPROJECT_BOARD, else the first configured board, else nothing.
+op_default_board() {
+  if [[ "${OPENPROJECT_BOARD:-}" =~ ^[0-9]+$ ]]; then echo "$OPENPROJECT_BOARD"; else op_boards | head -n 1 | cut -f2; fi
+}
+# op_board_id [<name|id>]: a number as is, a name through the map, nothing for the default; fails for an unknown name.
+op_board_id() {
+  local b="${1:-}"
+  if [[ -z "$b" ]]; then op_default_board
+  elif [[ "$b" =~ ^[0-9]+$ ]]; then echo "$b"
+  else op_boards | awk -F'\t' -v n="$b" 'tolower($1) == tolower(n) { print $2; f = 1; exit } END { exit !f }'
+  fi
+}
+# op_board_label <id>: "<name> (<id>)" from the map, or "<id>"
+op_board_label() {
+  local name; name="$(op_boards | awk -F'\t' -v i="$1" '$2 == i { print $1; exit }')"
+  if [[ -n "$name" ]]; then echo "$name ($1)"; else echo "$1"; fi
+}
 
 # op_call <METHOD> <path under /api/v3> [json body]
 op_call() {
@@ -35,6 +65,7 @@ op_call() {
     -w '\n%{http_code}' "$op_base$path")" || { echo "tracker(openproject): $method $path failed to connect" >&2; return 1; }
   code="${out##*$'\n'}"; out="${out%$'\n'*}"
   if [[ "$code" != 2* ]]; then
+    [[ -z "${op_quiet:-}" ]] || return 1
     echo "tracker(openproject): $method $path -> HTTP $code $(jq -r '.message // empty' <<<"$out" 2>/dev/null)" >&2
     return 1
   fi
@@ -84,6 +115,23 @@ op_status_filter() {
   jq -cn --arg id "${href##*/}" '[{"status":{"operator":"=","values":[$id]}}]'
 }
 
+op_by_status() {
+  op_wps "$op_open" | jq -r 'group_by(._links.status.title)[] |
+    "== \(.[0]._links.status.title)", (.[] | "  #\(.id) \(.subject)  \('"$op_who"')")'
+}
+
+# op_show_board <board id>: each column of the board with its cards
+op_show_board() {
+  local cols q name
+  cols="$(op_columns "$1")" || return 1
+  while IFS=$'\t' read -r q name; do
+    [[ -n "$q" ]] || continue
+    echo "== $name"
+    op_call GET "/queries/$q?pageSize=500" | jq -r '._embedded.results._embedded.elements[]? |
+      "  #\(.id) \(.subject)  [\(._links.status.title)]  \('"$op_who"')"'
+  done <<<"$cols"
+}
+
 tr_list() {
   local what="${1:-board}" f
   shift || true
@@ -95,67 +143,98 @@ tr_list() {
     json) op_wps "$op_open" | jq --arg url "${OPENPROJECT_URL%/}" '[.[] | {id, title: .subject,
         labels: [("type::" + ._links.type.title), ("status::" + ._links.status.title)], state: "opened",
         createdAt, updatedAt, author: ._links.author.title, url: "\($url)/work_packages/\(.id)"}]' ;;
-    board) local board q name
-      board="$(op_board_id "${1:-}")"
-      if [[ -z "$board" ]]; then
-        op_wps "$op_open" | jq -r 'group_by(._links.status.title)[] |
-          "== \(.[0]._links.status.title)", (.[] | "  #\(.id) \(.subject)  \('"$op_who"')")'
-        return
+    board) local board boards name id
+      boards="$(op_boards)"
+      if [[ "${1:-}" == all ]]; then
+        if [[ -z "$boards" ]]; then echo "no boards configured (project.openproject.boards): open work packages by status"; op_by_status; return; fi
+        while IFS=$'\t' read -r name id; do
+          echo "### $name ($id)"
+          op_show_board "$id" || true
+        done <<<"$boards"
+        return 0
       fi
-      op_columns "$board" | while IFS=$'\t' read -r q name; do
-        echo "== $name"
-        op_call GET "/queries/$q?pageSize=500" | jq -r '._embedded.results._embedded.elements[]? |
-          "  #\(.id) \(.subject)  [\(._links.status.title)]  \('"$op_who"')"'
-      done ;;
-    *) echo "tracker list: what to list? board, status <name>, open, ready or json" >&2; return 1 ;;
+      if [[ -n "${1:-}" ]] && ! board="$(op_board_id "$1")"; then
+        echo "tracker(openproject): no board named '$1' in project.openproject.boards${boards:+ (configured: $(cut -f1 <<<"$boards" | paste -sd, -))}" >&2
+        return 1
+      fi
+      [[ -n "${1:-}" ]] || board="$(op_default_board)"
+      if [[ -z "$board" ]]; then op_by_status; return; fi
+      op_show_board "$board" ;;
+    *) echo "tracker list: what to list? board [<name|id|all>], status <name>, open, ready or json" >&2; return 1 ;;
   esac
 }
 
-# op_board_id [<board>]: a numeric --board wins; a name (issues, frontend, …) means OPENPROJECT_BOARD.
-op_board_id() { if [[ "${1:-}" =~ ^[0-9]+$ ]]; then echo "$1"; else echo "$op_board"; fi; }
-
-# op_columns <board id>: "<query id>\t<column name>" per column, left to right
+# op_columns <board id>: "<query id>\t<column name>" per column, left to right. A board OpenProject does not
+# have (or the key cannot see) is named in one line and fails.
 op_columns() {
-  local q
-  op_call GET "/grids/$1" | jq -r '.widgets | sort_by(.startColumn)[] | .options.queryId // empty' | while read -r q; do
+  local grid q
+  grid="$(op_quiet=1 op_call GET "/grids/$1")" || {
+    echo "board $(op_board_label "$1"): not found on OpenProject (or this API key cannot see it); skipped" >&2; return 1; }
+  jq -r '.widgets | sort_by(.startColumn)[] | .options.queryId // empty' <<<"$grid" | while read -r q; do
     printf '%s\t%s\n' "$q" "$(op_call GET "/queries/$q?pageSize=0" | jq -r .name)"
   done
 }
 
-# op_column <status>: the board column a status belongs in; a status not listed goes to the column of its own name.
-# Nothing for Todo and Ready for Development, so a card the owner placed by hand stays where it is.
+# op_column <status>: the column a status maps to when no column has the status's own name. Nothing for Todo,
+# Ready for Development and any status not listed, so the card stays where it is.
 op_column() {
   case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
-    todo|"ready for development") ;;
     "in development"|"code review") echo "In Process" ;;
     "in testing"|"ready for qa"|"in qa") echo "In Testing" ;;
     "ready for release") echo "To Be Deployed" ;;
     done|closed|resolved) echo "Complete" ;;
     rejected) echo "Canceled" ;;
     "on hold"|blocked|pending) echo "Pending" ;;
-    *) echo "$1" ;;
   esac
 }
 
-# op_place <wp id> <column name> [<board>]: take the card out of every other column and add it to the end of this one.
+# op_place <wp id> <board id> <status|column> <mode>: move the card to its column on that board, taking it out of
+# every other column. mode "status": the column named like the status wins, else op_column's; the card must
+# already be on the board. mode "column": the column of that name; the card is added.
+# Returns 0 when done (or left in place), 3 when the card is not on the board, 4 when the board cannot be read.
 op_place() {
-  local id="$1" column="$2" board cols target q name order max
-  board="$(op_board_id "${3:-}")"
-  [[ -n "$board" && -n "$column" ]] || return 0
-  cols="$(op_columns "$board")" || return 1
-  target="$(awk -F'\t' -v c="$column" 'tolower($2) == tolower(c) { print $1; exit }' <<<"$cols")"
-  [[ -n "$target" ]] || { echo "card not moved: board $board has no column named '$column'" >&2; return 0; }
+  local id="$1" board="$2" want="$3" mode="$4" label cols target tname q name order sits="" max=-1
+  label="$(op_board_label "$board")"
+  cols="$(op_columns "$board")" || return 4
+  tname="$want"
+  target="$(awk -F'\t' -v c="$tname" 'tolower($2) == tolower(c) { print $1; exit }' <<<"$cols")"
+  if [[ -z "$target" && "$mode" == status ]]; then
+    tname="$(op_column "$want")"
+    [[ -z "$tname" ]] || target="$(awk -F'\t' -v c="$tname" 'tolower($2) == tolower(c) { print $1; exit }' <<<"$cols")"
+  fi
   while IFS=$'\t' read -r q name; do
-    order="$(op_call GET "/queries/$q/order")" || return 1
-    if [[ "$q" == "$target" ]]; then
-      jq -e --arg id "$id" 'has($id)' <<<"$order" >/dev/null && { echo "card already in '$name'"; return 0; }
-      max="$(jq '[.[]] | max // -1' <<<"$order")"
-    elif jq -e --arg id "$id" 'has($id)' <<<"$order" >/dev/null; then
-      op_write PATCH "/queries/$q/order" "$(jq -cn --arg id "$id" '{delta: {($id): -1}}')" >/dev/null || return 1
-    fi
+    [[ -n "$q" ]] || continue
+    order="$(op_call GET "/queries/$q/order")" || return 4
+    jq -e --arg id "$id" 'has($id)' <<<"$order" >/dev/null && sits+="$q "
+    [[ "$q" != "$target" ]] || max="$(jq '[.[]] | max // -1' <<<"$order")"
   done <<<"$cols"
-  op_write PATCH "/queries/$target/order" "$(jq -cn --arg id "$id" --argjson p "$((max + 1))" '{delta: {($id): $p}}')" >/dev/null \
-    && echo "card moved to '$column' on board $board"
+  [[ "$mode" != status || -n "$sits" ]] || return 3
+  if [[ -z "$tname" ]]; then echo "card left where it is on board $label"; return 0; fi
+  if [[ -z "$target" ]]; then echo "card not moved on board $label: no column named '$tname'" >&2; return 0; fi
+  for q in $sits; do
+    [[ "$q" == "$target" ]] || op_write PATCH "/queries/$q/order" "$(jq -cn --arg id "$id" '{delta: {($id): -1}}')" >/dev/null || return 4
+  done
+  if [[ " $sits" == *" $target "* ]]; then echo "card already in '$tname' on board $label"; return 0; fi
+  op_write PATCH "/queries/$target/order" "$(jq -cn --arg id "$id" --argjson p "$((max + 1))" '{delta: {($id): $p}}')" >/dev/null || return 4
+  echo "card moved to '$tname' on board $label"
+}
+
+# op_follow <wp id> <status>: move the card on every configured board where it sits. Nothing without boards.
+op_follow() {
+  local id="$1" status="$2" boards name bid rc found=0 absent=""
+  boards="$(op_boards)"
+  [[ -n "$boards" ]] || return 0
+  while IFS=$'\t' read -r name bid; do
+    op_place "$id" "$bid" "$status" status; rc=$?
+    case "$rc" in
+      0) found=1 ;;
+      3) absent+="${absent:+, }$name ($bid)" ;;
+      4) ;;
+      *) echo "card not moved on board $name ($bid)" >&2 ;;
+    esac
+  done <<<"$boards"
+  [[ "$found" == 1 || -z "$absent" ]] || echo "card #$id is on none of the boards ($absent): not moved"
+  return 0
 }
 
 op_comment() {
@@ -177,7 +256,7 @@ tr_status() {
   op_set_status "$id" "$status" || { echo "tracker: could not set the status of #$id" >&2; return 1; }
   [[ -z "$note" ]] || { op_comment "$id" "$note" && echo "commented"; }
   echo "#$id -> status $status"
-  op_place "$id" "$(op_column "$status")" || echo "card not moved on board $op_board" >&2
+  op_follow "$id" "$status"
 }
 
 tr_ready() {
@@ -204,8 +283,15 @@ tr_create() {
   for pair in ${tk_extra[@]+"${tk_extra[@]}"}; do labels+=("${pair%% *}::${pair#* }"); done
   desc="$tk_desc"
   [[ ${#labels[@]} -eq 0 ]] || desc+=$'\n\n'"Labels: ${labels[*]}"
-  # Without a basic board, a column is read as a status.
-  [[ -n "$(op_board_id "$tk_board")" || -z "$tk_board" || -z "$(op_href statuses "$tk_column")" ]] || status="$tk_column"
+  local bid="" unplaced=""
+  if [[ -n "$tk_board" ]]; then
+    if bid="$(op_board_id "$tk_board")" && [[ -n "$bid" ]]; then :
+    elif [[ -z "$(op_boards)" ]]; then bid=""; unplaced="card not placed: no OpenProject board configured (project.openproject.boards)"
+    else bid=""; unplaced="card not placed: no board named '$tk_board' in project.openproject.boards"
+    fi
+  fi
+  # Without a board, a column is read as a status.
+  [[ -n "$bid" || -z "$tk_board" || -z "$(op_href statuses "$tk_column")" ]] || status="$tk_column"
   type_href="$(op_href types "$tk_type")"
   [[ -n "$type_href" ]] || { echo "tracker(openproject): the project has no type named '$tk_type'" >&2; return 1; }
   status_href="$(op_href statuses "$status")"
@@ -213,7 +299,8 @@ tr_create() {
     '{subject: $s, description: {format: "markdown", raw: $d}, _links: {type: {href: $t}}}')"
   if tk_dry; then
     echo "DRY RUN: POST /projects/$OPENPROJECT_PROJECT/work_packages subject='$tk_subject' type=$tk_type status=$status relates=${tk_relates[*]-} <${#desc} chars>" >&2
-    [[ -z "$tk_board" || -z "$(op_board_id "$tk_board")" ]] || echo "DRY RUN: place the card in '$tk_column' on board $(op_board_id "$tk_board")" >&2
+    if [[ -n "$bid" ]]; then echo "DRY RUN: place the card in '$tk_column' on board $(op_board_label "$bid")" >&2
+    elif [[ -n "$unplaced" ]]; then echo "$unplaced" >&2; fi
     return 0
   fi
   created="$(op_call POST "/projects/$OPENPROJECT_PROJECT/work_packages" "$body")" || return 1
@@ -227,6 +314,7 @@ tr_create() {
       "$(jq -cn --arg to "/api/v3/work_packages/$rel" '{type: "relates", _links: {to: {href: $to}}}')" >/dev/null \
       && echo "relates to #$rel" || echo "relation to #$rel not created" >&2
   done
-  [[ -z "$tk_board" ]] || op_place "$id" "$tk_column" "$tk_board" || echo "card not placed in '$tk_column'" >&2
+  if [[ -n "$bid" ]]; then op_place "$id" "$bid" "$tk_column" column || [[ $? == 4 ]] || echo "card not placed in '$tk_column'" >&2
+  elif [[ -n "$unplaced" ]]; then echo "$unplaced" >&2; fi
   return 0
 }
