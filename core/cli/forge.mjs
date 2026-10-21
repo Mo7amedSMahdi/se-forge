@@ -2,7 +2,7 @@
 // forge: puts the se-forge kit into a client checkout, without committing anything to it.
 //   forge setup --team-repo <path> [--kit-repo <git url>] [--pacing on|off]
 //                                         this machine's team repo clone; where kit versions come from; pacing
-//   forge init --project <slug> [--new] [--client <name>] [--host gitlab|github] [--tracker gitlab|github] [--force]
+//   forge init --project <slug> [--new] [--client <name>] [--host gitlab|github] [--tracker gitlab|github|openproject] [--force]
 //                                         also creates the dev and staging branches from main when missing (never pushed)
 //   forge sync [--force]                  write the project's pinned kit version and its overrides into this checkout
 //   forge upgrade --to <version>          pin the project to another kit version and sync
@@ -49,7 +49,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { loadConfig, leadCompactAt } from '../policy/lib/config.mjs';
+import { loadConfig, leadCompactAt, TRACKERS } from '../policy/lib/config.mjs';
 import { git, mainRootOf, makeContext } from '../policy/lib/context.mjs';
 import { KIT_ROOT, kitVersion } from '../policy/lib/kit.mjs';
 import { gatesCommand } from '../policy/lib/handlers.mjs';
@@ -301,6 +301,7 @@ async function init(o, env, cwd, out) {
   const { main, linked } = checkout(cwd);
   if (linked) throw new UsageError(`Run forge init in the main checkout (${main}), not in a worktree.`);
   const slug = o.project;
+  if (o.tracker !== undefined && !TRACKERS.includes(o.tracker)) throw new UsageError(`--tracker must be ${TRACKERS.join(', ')}`);
   if (!slug || slug === true || !/^[a-z0-9][a-z0-9._-]*$/.test(slug)) throw new UsageError('forge init needs --project <slug> (lowercase letters, digits, . _ -), e.g. acme-portal');
   const tracked = git(main, ['ls-files', '--', '.forge', '.claude/settings.local.json']).out.split('\n').filter(Boolean);
   if (tracked.length) throw new UsageError(`Kit files are tracked in this repository: ${tracked.join(', ')}. The kit must stay out of client repos: git rm --cached them first.`);
@@ -443,6 +444,15 @@ function branchesInit(main, config, out) {
 
 // The system's description and each member repository: in the workspace, linked, its settings valid, its gate set and
 // its own branches on origin.
+// OpenProject is reached with curl and jq; its settings come from the environment, checked by name only.
+function openprojectDoctor(env, check) {
+  const missing = ['curl', 'jq'].filter((c) => spawnSync(c, ['--version']).status !== 0);
+  const unset = ['OPENPROJECT_URL', 'OPENPROJECT_API_KEY', 'OPENPROJECT_PROJECT'].filter((n) => !env[n]);
+  if (missing.length) check('warn', `tracker openproject needs ${missing.join(' and ')} (brew install ${missing.join(' ')})`);
+  else if (unset.length) check('warn', `tracker openproject: ${unset.join(', ')} not set (export ${unset.length === 1 ? 'it' : 'them'} in your shell profile; see the tracker skill)`);
+  else check('ok', `tracker openproject: curl and jq installed; OPENPROJECT_URL, OPENPROJECT_API_KEY and OPENPROJECT_PROJECT set${env.OPENPROJECT_BOARD ? '; board columns kept in step (OPENPROJECT_BOARD)' : ''}`);
+}
+
 function systemDoctor(main, env, check) {
   const sys = systemOf(main);
   const errors = sys ? checkSystem(sys) : ['no system.json in the team folder'];
@@ -484,7 +494,8 @@ function doctor(env, cwd, out) {
     if (project.api.contractRepo) check(project.api.pin ? 'ok' : 'warn', project.api.pin ? `API contract from ${project.api.contractRepo}, pinned at ${project.api.pin}` : `API contract from ${project.api.contractRepo}, but no version is pinned (project.api.pin)`);
     const cli = { gitlab: 'glab', github: 'gh' }[project.tracker];
     const missing = [cli, 'jq'].filter((c) => c && spawnSync(c, ['--version']).status !== 0);
-    if (cli) check(missing.length ? 'warn' : 'ok', missing.length ? `tracker ${project.tracker} needs ${missing.join(' and ')} (brew install ${missing.join(' ')}; then ${cli} auth login)` : `tracker ${project.tracker}: ${cli} and jq installed`);
+    if (project.tracker === 'openproject') openprojectDoctor(env, check);
+    else if (cli) check(missing.length ? 'warn' : 'ok', missing.length ? `tracker ${project.tracker} needs ${missing.join(' and ')} (brew install ${missing.join(' ')}; then ${cli} auth login)` : `tracker ${project.tracker}: ${cli} and jq installed`);
     const have = readVersion(path.join(main, '.forge', 'kit'));
     check(have && have === (pin || have) ? 'ok' : 'fail', have ? `kit ${have} in .forge/kit${pin && pin !== have ? ` but the project pins ${pin}: forge sync` : ''}` : 'no kit in .forge/kit: forge sync');
     // A system's workspace root has no gate and no origin of its own: each member repository has both (decision 130).
@@ -690,7 +701,8 @@ async function run(argv, env, cwd, out, failed) {
         const { main: m } = checkout(cwd);
         const { project } = loadConfig(m, env);
         // A system's one board (decision 131): every repository's tickets go to it.
-        const board = project.board ? { [project.tracker === 'github' ? 'GH_REPO' : 'GITLAB_REPO']: project.board } : {};
+        const repoVar = { github: 'GH_REPO', gitlab: 'GITLAB_REPO' }[project.tracker];
+        const board = project.board && repoVar ? { [repoVar]: project.board } : {};
         return passthrough('core/tracker/tracker.sh', rest, { FORGE_TRACKER: env.FORGE_TRACKER || project.tracker, ...board }, env, m);
       }
       case 'handover': {

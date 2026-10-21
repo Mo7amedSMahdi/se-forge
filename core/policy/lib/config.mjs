@@ -111,6 +111,9 @@ export const PROJECT_DEFAULTS = Object.freeze({
 // Code accepts (decision 93). Claude Code compacts well before the window's end, keeping room for its reply
 // (at about 66k of a 100k window, measured), so the window sits 100k past the handover line: the lead is
 // warned first and has room to bring its handover up to date.
+// The trackers core/tracker/adapters/ has an adapter for (project.tracker, forge init --tracker).
+export const TRACKERS = Object.freeze(['gitlab', 'github', 'openproject']);
+
 export const leadCompactAt = (budget) => Math.min(1000000, Math.max(100000, budget.leadWarn + 100000));
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -191,6 +194,7 @@ export function loadConfig(mainRoot, env = process.env) {
   for (const k of ['lanes', 'blockerRounds', 'qaFails']) if (!Number.isInteger(config.limits?.[k]) || config.limits[k] < 1) errors.push(`policy.limits.${k} must be a whole number, 1 or more`);
   if (!['auto', 'gitleaks', 'builtin'].includes(config.secrets.scanner)) errors.push('policy.secrets.scanner must be auto, gitleaks or builtin');
   if (!['github', 'gitlab'].includes(project.host)) errors.push('project.host must be github or gitlab');
+  if (project.tracker && !TRACKERS.includes(project.tracker)) errors.push(`project.tracker must be ${TRACKERS.join(', ')}`);
   if (!['light', 'full'].includes(project.mode)) errors.push('project.mode must be light or full');
   if (!['', 'kit', 'figma', 'pdf', 'images'].includes(project.design.source)) errors.push('project.design.source must be kit, figma, pdf or images');
   for (const [tier, model] of Object.entries(project.models)) if (!/^[\w.:[\]-]+$/.test(model)) errors.push(`project.models.${tier} must be a model name (e.g. sonnet, opus, claude-opus-5-5)`);

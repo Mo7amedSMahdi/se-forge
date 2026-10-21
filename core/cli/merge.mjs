@@ -30,7 +30,8 @@ const TRACKER = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../t
 // A merged ticket is Done (decision 118). A failure is reported, never undoes the merge.
 function closeTicket(ctx, ticket, note, cwd, env) {
   if (!/^\d+$/.test(String(ticket))) return `${ticket} is not a tracker issue number: no status to change`;
-  const board = ctx.project.board ? { [ctx.project.tracker === 'github' ? 'GH_REPO' : 'GITLAB_REPO']: ctx.project.board } : {};
+  const repoVar = { github: 'GH_REPO', gitlab: 'GITLAB_REPO' }[ctx.project.tracker];
+  const board = ctx.project.board && repoVar ? { [repoVar]: ctx.project.board } : {};
   const r = spawnSync('bash', [TRACKER, 'status', String(ticket), 'Done', '--comment', note], { cwd, encoding: 'utf8', env: { ...env, FORGE_TRACKER: env.FORGE_TRACKER || ctx.project.tracker, ...board } });
   if (r.status === 0) return `#${ticket} -> Done (its issue is closed)`;
   return `the tracker did not move #${ticket} (${((r.stderr || r.stdout || '').trim().split('\n').pop() || `exit ${r.status}`)}): run forge tracker status ${ticket} Done`;
