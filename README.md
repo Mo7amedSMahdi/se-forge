@@ -173,7 +173,7 @@ Details: `core/policy/README.md`.
 | Web | React with Vite, a generated API client, TanStack Query, shadcn/ui and Tailwind, i18next with Arabic RTL |
 | Mobile | Flutter 3.47 (Riverpod, go_router, gen-l10n with Arabic RTL), Android builds in CI |
 | Delivery | Docker Compose for the local stack, GitLab CI or GitHub Actions (secret scan, gates, image build) |
-| Tracker | GitLab issues, GitHub issues or OpenProject work packages |
+| Tracker | GitLab issues, GitHub issues or OpenProject work packages (settings in `project.openproject`, the API key in the OS keychain: GUIDE.md, G) |
 
 `forge new` writes a working skeleton for any supported pair that passes its gate on day one.
 
