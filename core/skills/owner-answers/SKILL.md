@@ -52,7 +52,7 @@ Rule to propose: <kind>, the default <n> of <n> times: "Planners decide <kind> t
 
 ## What the lead does with it
 1. Paste the reply's plan line into the plan's section 6, under the questions, as it is; leave the questions as they are. Lanes build on these answers.
-2. Append the reply's log rows, then ask the owner only the `owner` questions (skill `ask-owner`). Log each of the owner's answers under the kind the reply gave it.
+2. Append the reply's log rows, set the plan's status line to `waiting for the owner: Q<n>, … (asked <date>)` (decision 139), then ask the owner only the `owner` questions (skill `ask-owner`). Log each of the owner's answers under the kind the reply gave it, and set the status line to where the ticket is.
 3. A rule to propose goes to the owner with those questions, as a yes/no: `A. Yes: planners decide <kind>, D-<next> · B. No: keep asking`. A yes becomes a register row, and planners stop asking that kind (skill `plan-ticket`).
 4. The next progress report lists the `precedent` and `obvious` answers since the last report under "Decided for you", as boxes (skill `progress-report`). For each one the owner ticks: ask it again, log the answer as `owner, changed`, and when the work was built on the old answer, file a `[Follow-up]` for the change (skill `report-issue`).
 5. With the owner out of reach, an `owner` question outside the gates may still go ahead on its default, noted in the plan (skill `pipeline`); a gate question waits.

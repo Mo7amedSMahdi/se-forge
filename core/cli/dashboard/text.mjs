@@ -43,7 +43,8 @@ export function flags(m) {
       if (blockers >= 2) out.push(`${t.id}: ${blockers} review rounds with blockers; the pipeline asks the owner after two rounds.`);
     }
     if (t.estimate && t.split && t.split.total > t.estimate.high * H) out.push(`${t.id}: ${duration(t.split.total)} so far, past its estimate (${range(t.estimate)}).`);
-    if (/\bblocked\b/i.test(t.status || '')) out.push(`${t.id}: ${cut(t.status, 160)}`);
+    // A plan blocked on an issue, or with questions asked and not answered yet (decision 139): a person is needed.
+    if (/\bblocked\b|\bwaiting for the owner\b/i.test(t.status || '')) out.push(`${t.id}: ${cut(t.status, 160)}`);
   }
   const merged = new Set(m.all.filter((t) => t.mergedAt).map((t) => t.num));
   for (const g of m.data.gatesFailed || []) {

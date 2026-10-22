@@ -19,7 +19,7 @@ You are the author: you plan and build. Reviewers are separate, read-only agents
 
 ## 2. Plan (skill `plan-ticket`, then `estimate`)
 - Write `.forge/project/plans/<ticket>-<slug>.md` with its `Branch:` and `Gates:` lines, items, tests and questions.
-- Spawn `owner-assistant` with the plan's path when it has open questions (decision 138, skill `owner-answers`): put its answers in the plan and its rows in the answer log. Ask the owner the questions it returns as `owner` once (AskUserQuestion, all in one message, as choices: skill `ask-owner`). A question on a gate (security, architecture) waits for the owner; never take its default.
+- Spawn `owner-assistant` with the plan's path when it has open questions (decision 138, skill `owner-answers`): put its answers in the plan and its rows in the answer log. Ask the owner the questions it returns as `owner` once (AskUserQuestion, all in one message, as choices: skill `ask-owner`), with the plan's status line set to `waiting for the owner: Q<n>, … (asked <date>)` until their answers are recorded (decision 139). A question on a gate (security, architecture) waits for the owner; never take its default.
 - The hook asks a human before you change security-sensitive paths on this branch.
 
 ## 3. Build

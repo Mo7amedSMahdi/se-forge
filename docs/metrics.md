@@ -257,7 +257,7 @@ wait counted once. How the numbers are made:
 - **Issues:** the tracker's issues now by status (open, in progress, In Testing, closed; epics not counted), with when they were read, or the last read and why the tracker could not be read now (chart 3);
 - **Open:** each ticket started and not merged, with its plan's `Status:` line, estimate, time so far split as in chart 4, review rounds, agents and cost;
 - **Not started**, then **Merged**, newest first (the ten newest in full);
-- **Look at:** for open tickets only, two or more review rounds with a blocker (the pipeline asks the owner after two), time past the estimate's high end, a plan whose status says blocked; a branch whose lane stopped with GATES-FAILED and that no green gate run has passed since; and 15 minutes with nothing happening while tickets are open;
+- **Look at:** for open tickets only, two or more review rounds with a blocker (the pipeline asks the owner after two), time past the estimate's high end, a plan whose status says blocked or waiting for the owner (decision 139); a branch whose lane stopped with GATES-FAILED and that no green gate run has passed since; and 15 minutes with nothing happening while tickets are open;
 - **Longest waits for you:** the five longest, with the tickets running then.
 
 The lead runs it after each merge into dev, and when the owner types `/progress-report` (skill

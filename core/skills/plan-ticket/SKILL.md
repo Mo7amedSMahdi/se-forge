@@ -24,7 +24,7 @@ Ticket: **$ARGUMENTS**
 ## The plan: `.forge/project/plans/<ticket>-<slug>.md`
 ```
 # <Ticket subject> (#<id>)
-Status: planned on <date>, before any code | in progress | in review | in testing | blocked on #<issue>
+Status: planned on <date>, before any code | waiting for the owner: Q<n>, … (asked <date>) | in progress | in review | in testing | blocked on #<issue>
 Areas: ui | mobile | api | db | infra (comma-separated; the items run db → api → ui → mobile)
 Contract: none | api-v<semver> (approved) | pending (<draft path>, version <x.y.z>)
 E2E: <the user flow the end-to-end tests cover> | not applicable (<reason>)

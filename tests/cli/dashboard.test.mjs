@@ -477,6 +477,22 @@ test('forge dashboard --text: the page\'s numbers as text, what to look at, and 
 });
 
 
+// Decision 139: questions asked and not answered outlive the session that asked them: the plan's status line says so.
+test('forge dashboard --text: a plan waiting for the owner is under Look at', () => {
+  const w = world();
+  const open = [
+    { at: at(140), event: 'tool.start', who: 'lead', tool: 'Agent', id: 's3', what: 'owner-assistant: #12 questions', ticket: '#12' },
+    { at: at(140), event: 'tool.done', who: 'lead', tool: 'Agent', id: 's3', ms: 100, spawned: 'a3', ticket: '#12' },
+  ];
+  write(path.join(w.state, 'timeline-2026-10.jsonl'), `${[...LINES, ...open].map((e) => JSON.stringify(e)).join('\n')}\n`);
+  write(path.join(w.folder, 'plans/12-book.md'), '# Book page (#12)\nStatus: waiting for the owner: Q4, Q6 (asked 2026-10-21)\nAreas: ui\n');
+  const r = spawnSync('node', [FORGE, 'dashboard', '--offline', '--text'], { cwd: w.client, encoding: 'utf8', env: { ...process.env, CLAUDECODE: '' } });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /\nOpen \(1\):\n- #12 Book page · waiting for the owner: Q4, Q6 \(asked 2026-10-21\)/);
+  const look = r.stdout.split('\nLook at:\n')[1].split('\n\n')[0].split('\n');
+  assert.ok(look.includes('- #12: waiting for the owner: Q4, Q6 (asked 2026-10-21)'), look.join('\n'));
+});
+
 test('the kit version: what this checkout runs, with the project\'s pin and the forge command when they differ', () => {
   assert.equal(kitText({ active: '0.2.15', pinned: '0.2.15', cli: '0.2.15' }), 'se-forge 0.2.15');
   assert.equal(kitText({ active: '0.2.15', pinned: null, cli: '0.2.15' }), 'se-forge 0.2.15', 'no pin: the project follows the forge command');
