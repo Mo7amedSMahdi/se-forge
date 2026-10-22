@@ -61,6 +61,7 @@ export function isSecretPath(p, config, home) {
   const base = norm.slice(norm.lastIndexOf('/') + 1);
   if (config.secrets.allow.includes(base)) return false;
   if (base === '.env' || base.startsWith('.env.') || (base.endsWith('.env') && base.length > 4)) return true;
+  if (isOpenProjectKeyPath(norm)) return true;
   if (SECRET_NAMES.has(base) || SECRET_EXT.has(path.extname(base).toLowerCase())) return true;
   if (/^id_(rsa|dsa|ecdsa|ed25519)(?!\.pub$)/.test(base)) return true;
   if (/(service[-_]?account|adminsdk).*\.json$/i.test(base)) return true;
