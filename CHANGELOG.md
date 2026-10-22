@@ -8,6 +8,8 @@ A project pins an exact version in its `project.json`; `forge upgrade --to <vers
 
 ## [Unreleased]
 
+## [0.2.35] - 2026-10-22
+
 ### Fixed
 - Questions asked and not answered are no longer lost with the session that asked them (decision 139). Before the lead asks a plan's questions, the plan's status line says `waiting for the owner: Q4, Q6 (asked <date>)` until the answers are recorded; `forge dashboard --text` lists the ticket under "Look at", and the progress report asks its questions again under "Needs the owner". Before, a report written in a new session said "nothing".
 
