@@ -16,7 +16,7 @@ Ticket: **$ARGUMENTS**
 5. **The areas.** Decide what the ticket really touches: `ui` (the web app), `mobile` (the Flutter app), `api`, `db`, `infra` (Dockerfiles, compose files, CI). Tracker labels (`area::…` / `area:…`) are only a hint. A db area needs the data model section (skill `data-model-design`); a new entry point, trust boundary or personal data, the threat model (skill `threat-model`).
 6. **End to end.** Name the user flow, added or changed by this ticket, that the end-to-end tests must cover, or write "not applicable (<reason>)": no user-facing change, API only, or covered by ticket #n. The done check holds the plan to it (decision 50).
 7. **Patterns.** Find the closest feature that already exists (`ls`, `grep -rn`) and name the files to copy from; a comparable plan in `.forge/project/plans/` helps too.
-8. **Questions.** Answer what you can from the decision register (`.forge/project/bootstrap/decisions.md`), citing its D-id. Only what it leaves open becomes a question in section 6.
+8. **Questions.** Answer what you can from the decision register (`.forge/project/bootstrap/decisions.md`), citing its D-id. Then decide yourself every technical choice inside the ticket's own areas (where a test goes, a helper's shape, a retry count, which pattern to copy, the order of commits) that carries no product behaviour, gate, dependency, scope, cost or contract change, and that the register leaves to you: list each under "Decided by the planner" in section 6, one line with its reason (decision 138). A kind of question the register gives to the planners is decided the same way. Only what is left becomes a question in section 6.
 9. **Write the plan** in the format below. For each conflict, raise an Issues-board Task and put its id in section 6:
    `forge tracker create --subject "[Story conflict] …" --source ai --description-file <f> --type Task --status Todo --relates $ARGUMENTS --board issues --column Pending`
 10. **Estimate it** (skill `estimate`): the plan's Estimate section, and the ticket's row in `.forge/project/metrics.md`. When the bootstrap draft has an estimate for the ticket (`**Estimate:**` under it in `.forge/project/bootstrap/tickets.md`), start from that and explain any difference.
@@ -48,7 +48,9 @@ The designer draws these later.
 ## 4. Tests and gates   (the gate command)
 ## 5. Risks; the files of other agents, which this ticket stays out of
 ## 6. Open questions and conflicts
+Decided by the planner: <choice>: <reason>, one line each (step 8).
 Numbered questions, each with options A, B (C, D) in one line apiece, the recommended one first in bold; a gate question says it waits for a person. Each conflict with its Issues-board Task id.
+Answered for you (owner-assistant, decision 138): the lead adds this line (skill `owner-answers`).
 ## Estimate   (skill `estimate`: hours per item, low and high, the main risk, the total)
 ## 7. Done and remaining   (the lead updates it from the lanes' reports)
 Review and QA reports live in `.forge/project/reviews/<ticket>/`, not in the plan.
@@ -59,4 +61,5 @@ Keep a plan under about 200 lines. Point to documents by path and page instead o
 - the plan exists with `Areas:`, `Contract:`, `Branch:` and `Gates:` lines (and `Repo:` in a system) and every section that applies;
 - the plan has its Estimate section, and `metrics.md` the ticket's row with that estimate;
 - every open question has a recommended default, and gate questions are marked for a human;
+- the technical choices the planner decided are listed under "Decided by the planner", each with its reason, and none of them is a product, gate, dependency, scope, cost or contract question;
 - every conflict has a tracker Task whose ID is in the plan.
