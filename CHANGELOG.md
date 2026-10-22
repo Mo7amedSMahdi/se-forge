@@ -8,6 +8,8 @@ A project pins an exact version in its `project.json`; `forge upgrade --to <vers
 
 ## [Unreleased]
 
+## [0.2.34] - 2026-10-22
+
 ### Added
 - An owner-assistant answers before the owner is asked (decision 138). Before a plan's or an agent's questions go to the owner, the lead spawns `owner-assistant` (read-only, standard tier): it answers what the owner has already decided (the register, an accepted ADR, the story, the contract, the owner's earlier answer), what the owner always took the default on before (3 times or more, never changed), and what the sources leave one way to answer, each with its source. Gate questions, dependencies, cost, scope, new product questions and actions only a person can take always go to the owner. Every answer goes into the new answer log, `.forge/project/owner-answers.md`, and the progress report lists what was answered for the owner under "Decided for you" to change. New skill `owner-answers` with the rules and the log's format.
 
