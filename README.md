@@ -78,7 +78,7 @@ flowchart TD
   end
   subgraph build["C6. /pipeline"]
     E1["Project manager: the next ready ticket"] --> E2["Planner: the plan and its estimate, answered from the decision register"]
-    E2 --> Q{"Questions the register does not answer?"}
+    E2 --> Q{"Questions the register, your earlier answers and the sources do not answer?"}
     Q -- "yes" --> Q1["You answer them, in one message"]
     Q -- "no" --> K{"Does the API change?"}
     Q1 --> K
@@ -130,16 +130,16 @@ flowchart TD
 | Planning and design | `planner`, `product-analyst`, `contract-analyst`, `designer`, `architect` | deep (Opus) |
 | Building | `db-engineer`, `backend-engineer`, `frontend-engineer`, `mobile-engineer`, `devops-engineer` | standard (Sonnet) |
 | Checking | `code-reviewer`, `spec-checker`, `db-reviewer`, `infra-reviewer`, `figma-ui-reviewer`, `performance-reviewer`, `requirements-reviewer`, `qa-engineer`; `security-reviewer` on deep | standard (Sonnet) |
-| Running the work | the lead (your session), `project-manager`, `tracker-clerk`, `scout` | the lead's model; standard; fast (Haiku) |
+| Running the work | the lead (your session), `project-manager`, `owner-assistant`, `tracker-clerk`, `scout` | the lead's model; standard; fast (Haiku) |
 
 The author of a change never reviews it. Reviewers are read-only; planners and analysts write documents only.
 Each project maps the tiers to models in `project.json`, and the engineers always run on their tier.
 
-### 66 skills
+### 67 skills
 The playbooks the agents follow: the lead's `pipeline`, `bootstrap` (discovery, stories, architecture, screens,
 contract, tickets, the requirements panel), `plan-ticket`, `review-pass`, `write-e2e`, `threat-model`,
 `api-contract-design`, `db-migration`, `figma-align`, `release`, `handover`, `progress-report`, `ask-owner` (every
-question to you as a choice) and more, plus a guide per stack. See `core/skills/`.
+question to you as a choice), `owner-answers` (what the owner-assistant answers for you) and more, plus a guide per stack. See `core/skills/`.
 
 ### The safety layer
 Claude Code hooks (`core/policy/`, Node 22, no dependencies) parse every command, through wrappers and
