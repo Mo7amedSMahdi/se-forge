@@ -6,7 +6,7 @@ import { memberOf, deepMerge } from './system.mjs';
 import path from 'node:path';
 
 const ENGINEERS = ['frontend-engineer', 'mobile-engineer', 'backend-engineer', 'db-engineer', 'devops-engineer', 'qa-engineer'];
-const READ_ONLY = ['code-reviewer', 'figma-ui-reviewer', 'scout', 'security-reviewer', 'spec-checker', 'db-reviewer', 'infra-reviewer', 'performance-reviewer', 'requirements-reviewer'];
+const READ_ONLY = ['code-reviewer', 'figma-ui-reviewer', 'scout', 'security-reviewer', 'spec-checker', 'db-reviewer', 'infra-reviewer', 'performance-reviewer', 'requirements-reviewer', 'owner-assistant'];
 const DOCS_ONLY = ['planner', 'contract-analyst', 'product-analyst', 'designer', 'tracker-clerk', 'architect', 'project-manager'];
 
 export const DEFAULTS = Object.freeze({

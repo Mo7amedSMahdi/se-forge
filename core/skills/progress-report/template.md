@@ -21,6 +21,10 @@ Issues: <the Issues line as printed>
    [ ] #<id> <title> (<…>)
 Reply like 1A 2[#id], or in your own words.
 
+## Decided for you
+The owner-assistant answered these from your earlier answers (decision 138). Tick any you want to answer yourself:
+[ ] #<id> Q<n>: <the question in a few words> → <letter>. <the answer> (<precedent: kind | obvious: source>)
+
 ## Look at
 - <each line from "Look at", and what the lead does about it>
 

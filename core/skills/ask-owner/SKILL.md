@@ -47,11 +47,11 @@ Reply like 1A 2[31] 3B, or in your own words.
 - All open questions in one message, not one at a time.
 
 ## Rules
-1. **Ask only what is open.** An answer the decision register or the plan already holds is never asked again; cite its D-id instead.
+1. **Ask only what is open.** An answer the decision register or the plan already holds is never asked again; cite its D-id instead. During the build, a plan's or an agent's questions go through `owner-assistant` first, and only what it returns as `owner` is asked (decision 138, skill `owner-answers`).
 2. **Gates wait.** A question on a gate (security, architecture) may carry a recommendation, but nothing goes ahead on it until the owner answers. Say so in its line.
 3. **Every option is real.** Each one is something you will do as written; no option that is only there to fill the list.
 4. **Agents that cannot ask** (lanes, reviewers, the planner, the project manager) write their questions in the written shape in their plan, report or digest; the lead asks them.
-5. **Record and confirm.** Put each answer where it belongs (the register with a new D-id, the plan, a ticket comment) and confirm in one line: `1A: Keycloak, recorded as D-031.`
+5. **Record and confirm.** Put each answer where it belongs (the register with a new D-id when it binds later tickets, the plan, a ticket comment), during the build also a row in the answer log (skill `owner-answers`), and confirm in one line: `1A: Keycloak, recorded as D-031.`
 6. **Short around the choices.** What happened, in at most 3 lines, then the choices. The rest goes in the file the report points to.
 
 ## Done when

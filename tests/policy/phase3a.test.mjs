@@ -43,6 +43,9 @@ test('session and lane injections carry the rules and facts within the 10,000 ch
   assert.match(lead, /# Rules for the main session \(the lead\)/);
   assert.match(lead, /AskUserQuestion\. Up to 4 questions per call/);
   assert.doesNotMatch(lane, /# Rules for the main session/);
+  // Decision 138: the lead runs a plan's or an agent's questions past the owner-assistant first.
+  assert.match(lead, /spawn `owner-assistant` once with all of them/);
+  assert.doesNotMatch(lane, /owner-assistant/);
 });
 
 test("a Figma file without a tool prefix gets the names of Figma's Claude Code plugin", () => {
@@ -102,6 +105,19 @@ test('every command can run: no command shadowed by a skill, none invoking a per
     assert.ok(!skills.has(name), `${f} is shadowed by the skill ${name}`);
     for (const s of personOnly) assert.doesNotMatch(text, new RegExp(`\\b${s}\\b\` skill`), `${f} invokes the person-only skill ${s}`);
   }
+});
+
+// Decision 138: the owner-assistant reads and answers, never edits, and starts with its rules loaded.
+test('the owner-assistant is read-only, on the standard tier, and preloads skill owner-answers', () => {
+  const { files, preloads } = renderClaude({ kitRoot: ROOT });
+  const agent = files.get('.claude/agents/owner-assistant.md');
+  assert.match(agent, /^model: sonnet$/m);
+  assert.match(agent, /^disallowedTools: Edit, NotebookEdit$/m);
+  assert.deepEqual(preloads['owner-assistant'], ['owner-answers']);
+  assert.ok(DEFAULTS.roles.readOnly.includes('owner-assistant'), 'the policy keeps it to inspection and reports');
+  const skill = fs.readFileSync(path.join(ROOT, 'core/skills/owner-answers/SKILL.md'), 'utf8');
+  for (const v of ['recorded', 'precedent', 'obvious', 'owner']) assert.match(skill, new RegExp(`^\\| \`${v}\` \\|`, 'm'), `verdict ${v}`);
+  assert.match(skill, /## Never answered for the owner\n- A gate question/);
 });
 
 // Decision 137: agents preload the playbooks their role names, and the project's stack picks the guides.

@@ -122,6 +122,20 @@ test('engineers are not read-only; scout is', () => {
   assert.equal(decision(pre(dir, 'Write', write, { agent_id: 's1', agent_type: 'scout' })), 'deny');
 });
 
+// Decision 138: the owner-assistant reads the log and the register with the commands its skill names; the lead writes them.
+test('the owner-assistant may read the answer log and the register, never write them', () => {
+  const { dir } = makeRepo();
+  const oa = { agent_id: 'o1', agent_type: 'owner-assistant' };
+  const kinds = `awk -F'|' '/^\\| [0-9]{4}-/ {gsub(/ /,"",$4); print $4}' .forge/project/owner-answers.md | sort | uniq -c`;
+  for (const c of [kinds, 'grep -n "retry" .forge/project/bootstrap/decisions.md', 'sed -n 1,40p frontend/src/lib/time.ts']) {
+    assert.equal(decision(pre(dir, 'Bash', { command: c }, oa)), 'allow', c);
+  }
+  for (const f of ['.forge/project/owner-answers.md', '.forge/project/bootstrap/decisions.md']) {
+    assert.equal(decision(pre(dir, 'Write', { file_path: path.join(dir, f), content: 'x' }, oa)), 'deny', f);
+  }
+  assert.notEqual(decision(pre(dir, 'Bash', { command: 'echo "| row |" >> .forge/project/owner-answers.md' }, oa)), 'allow');
+});
+
 test('project commands are approved without a prompt; anything else is not', () => {
   const { dir } = makeRepo({ ...DEFAULT_TEST_CONFIG, commands: { allow: ['npm run dev'] } });
   const allowed = ['sh ./check.sh', 'sh ./check.sh > /tmp/gates.log 2>&1; tail -5 /tmp/gates.log', 'npm run dev > /tmp/dev.log 2>&1 &',

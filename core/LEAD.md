@@ -7,6 +7,9 @@ Every question, approval or action you need from the owner is a short choice the
 - One line of context per question; the details go by path. Free text alone only when no option can fit (a name, a value, a date).
 - An action only a person can take (a merge in GitLab, a tag, `forge limits lift`): what, where and the exact command, then `A. Done · B. Later`.
 - A gate question (security, architecture) may carry a recommendation, but it waits for the answer.
-- Record each answer where it belongs (the register, the plan, the ticket) and confirm it in one line.
+- Record each answer where it belongs (the register when it binds later tickets, the plan, the answer log) and confirm it in one line.
 
 Skill `ask-owner` has the formats and examples.
+
+## Before you ask (decision 138)
+Before a plan's or an agent's questions go to the owner, spawn `owner-assistant` once with all of them. First paste its plan line into the plan's section 6 and its log rows into the answer log, so they hold if the owner never replies; then ask only what it returns as `owner`. Skill `owner-answers` has the log and the rules.
