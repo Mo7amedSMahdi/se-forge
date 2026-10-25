@@ -6,6 +6,7 @@
 #   OPENPROJECT_BOARDS        boards: "name=id,name=id", the basic boards (/projects/<identifier>/boards/<id>)
 #   OPENPROJECT_BOARD         defaultBoard (or board): the board id used when no --board is given
 #   OPENPROJECT_READY_STATUS  readyStatus: the status `ready` moves a ticket to and `list ready` reads (default "Todo")
+#   TRACKER_ASSIGNEE          optional: the user `create` assigns when --assignee is not given
 # The API key is never in project.json: openproject-key.sh finds it (environment, macOS Keychain, Linux keyring,
 # or a private file) and it goes to curl through a config file descriptor, never in an argument or in output.
 # - A ticket is a work package; its status and type are OpenProject's own. Done, Closed and Resolved are
@@ -81,14 +82,24 @@ op_wps() {
   op_call GET "/projects/$OPENPROJECT_PROJECT/work_packages?pageSize=500&sortBy=$(op_q '[["id","asc"]]')&filters=$(op_q "$1")" | jq '._embedded.elements'
 }
 op_open='[{"status":{"operator":"o","values":null}}]'
-# op_href <collection> <name>: the href of the status/type with that name (case-insensitive), or nothing
+# op_href <collection> <name>: the href of the status/type/assignable user with that name (case-insensitive), or nothing
 op_href() {
   local list
   case "$1" in
     statuses) list="$(op_call GET /statuses)" ;;
     types) list="$(op_call GET "/projects/$OPENPROJECT_PROJECT/types")" ;;
+    users) list="$(op_call GET "/projects/$OPENPROJECT_PROJECT/available_assignees")" ;;
   esac || return 1
   jq -r --arg n "$2" '._embedded.elements[] | select((.name | ascii_downcase) == ($n | ascii_downcase)) | ._links.self.href' <<<"$list" | head -n 1
+}
+
+# op_user <name>: the href of the user with that name the project can assign (case-insensitive), or fails saying so
+op_user() {
+  local href
+  href="$(op_href users "$1")" || return 1
+  [[ -n "$href" ]] && { printf '%s' "$href"; return 0; }
+  echo "tracker(openproject): no user named '$1' can be assigned in project $OPENPROJECT_PROJECT (GET /projects/$OPENPROJECT_PROJECT/available_assignees lists them)" >&2
+  return 1
 }
 
 op_who='(._links.assignee.title // "-")'
@@ -259,6 +270,15 @@ tr_status() {
   op_follow "$id" "$status"
 }
 
+tr_assign() {
+  local id="${1:?forge tracker assign needs a ticket id}" name="${2:?forge tracker assign needs the assignee name}" href lock
+  href="$(op_user "$name")" || return 1
+  lock="$(op_call GET "/work_packages/$id" | jq -r .lockVersion)" || return 1
+  op_write PATCH "/work_packages/$id" "$(jq -cn --argjson l "$lock" --arg h "$href" '{lockVersion: $l, _links: {assignee: {href: $h}}}')" >/dev/null \
+    || { echo "tracker: could not assign #$id" >&2; return 1; }
+  echo "#$id -> assignee $name"
+}
+
 tr_ready() {
   local id="${1:?forge tracker ready needs a ticket id}" note
   note="$(tk_note "${@:2}")"
@@ -295,10 +315,13 @@ tr_create() {
   type_href="$(op_href types "$tk_type")"
   [[ -n "$type_href" ]] || { echo "tracker(openproject): the project has no type named '$tk_type'" >&2; return 1; }
   status_href="$(op_href statuses "$status")"
-  body="$(jq -cn --arg s "$tk_subject" --arg d "$desc" --arg t "$type_href" \
-    '{subject: $s, description: {format: "markdown", raw: $d}, _links: {type: {href: $t}}}')"
+  local assignee_href=""
+  if [[ -n "$tk_assignee" ]]; then assignee_href="$(op_user "$tk_assignee")" || return 1; fi
+  body="$(jq -cn --arg s "$tk_subject" --arg d "$desc" --arg t "$type_href" --arg a "$assignee_href" \
+    '{subject: $s, description: {format: "markdown", raw: $d},
+      _links: ({type: {href: $t}} + (if $a == "" then {} else {assignee: {href: $a}} end))}')"
   if tk_dry; then
-    echo "DRY RUN: POST /projects/$OPENPROJECT_PROJECT/work_packages subject='$tk_subject' type=$tk_type status=$status relates=${tk_relates[*]-} <${#desc} chars>" >&2
+    echo "DRY RUN: POST /projects/$OPENPROJECT_PROJECT/work_packages subject='$tk_subject' type=$tk_type status=$status relates=${tk_relates[*]-} assignee=${tk_assignee:--} <${#desc} chars>" >&2
     if [[ -n "$bid" ]]; then echo "DRY RUN: place the card in '$tk_column' on board $(op_board_label "$bid")" >&2
     elif [[ -n "$unplaced" ]]; then echo "$unplaced" >&2; fi
     return 0

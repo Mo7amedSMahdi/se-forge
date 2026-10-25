@@ -21,8 +21,10 @@ Read:
 Change:
   create --subject "<title>" [--description "<text>" | --description-file <file>] [--type Task]
          [--status Todo] [--relates <id>]... [--board issues|frontend|<board> --column Pending]
-         [--source ai] [--area ui|api|db|infra]... [--repo <name>] [--ready]
+         [--source ai] [--area ui|api|db|infra]... [--repo <name>] [--ready] [--assignee "<name>"]
                                           --repo: in a system, the repository the ticket changes (decision 131)
+                                          --assignee: else TRACKER_ASSIGNEE, else unassigned
+  assign <id> "<name>"                    set the assignee (OpenProject: the user's name; GitLab/GitHub: username)
   status <id> "<status>" [--comment "<text>"]   Done, Closed and Resolved also close the ticket
   comment <id> "<text>"  |  comment <id> --file <file>
   ready <id> [--comment "<why>"]          hand it to the leader (project-manager, bugs only)
@@ -49,6 +51,6 @@ fi
 
 command="$1"; shift
 case "$command" in
-  get|list|create|status|comment|statuses|ready) "tr_$command" "$@" ;;
+  get|list|create|status|comment|statuses|ready|assign) "tr_$command" "$@" ;;
   *) echo "tracker: '$command' is not a tracker command (forge tracker help lists them)" >&2; exit 1 ;;
 esac
