@@ -27,6 +27,7 @@ const names = { 11: 'Todo', 12: 'In Process', 21: 'Backlog', 22: 'In Development
 let r = null;
 if (p === '/work_packages/42') r = wp(42, 'Todo', 'Login');
 else if (p === '/statuses') r = { _embedded: { elements: [{ name: 'Todo', isClosed: false, _links: { self: { href: '/api/v3/statuses/1' } } }, { name: 'In Development', _links: { self: { href: '/api/v3/statuses/7' } } }, { name: 'Closed', isClosed: true, _links: { self: { href: '/api/v3/statuses/12' } } }] } };
+else if (/\/available_assignees$/.test(p)) r = { _embedded: { elements: [{ name: 'Amal Hassan', _links: { self: { href: '/api/v3/users/9' } } }, { name: 'Omar', _links: { self: { href: '/api/v3/users/4' } } }] } };
 else if (/\/types$/.test(p)) r = { _embedded: { elements: [{ name: 'Task', _links: { self: { href: '/api/v3/types/1' } } }, { name: 'Bug', _links: { self: { href: '/api/v3/types/7' } } }] } };
 else if (/\/work_packages$/.test(p) && method === 'GET') r = { _embedded: { elements: [wp(42, 'Todo', 'Login'), wp(43, 'In Development', 'Orders')] } };
 else if (p === '/grids/5') r = { widgets: [{ startColumn: 2, options: { queryId: 12 } }, { startColumn: 1, options: { queryId: 11 } }] };
@@ -236,6 +237,42 @@ test('openproject: create in a dry run writes nothing and keeps labels in the de
   assert.match(r.err, /DRY RUN: place the card in 'Todo' on board issues \(5\)/);
   const live = op(['create', '--subject', 'y', '--source', 'ai']);
   assert.ok(live.writes[0].startsWith('POST /projects/ird/work_packages') && live.writes[0].includes('Labels: source::ai'), live.writes.join('\n'));
+});
+
+test('openproject: create --assignee (or TRACKER_ASSIGNEE) assigns the user by name, case-insensitively', () => {
+  const r = op(['create', '--subject', 'x', '--assignee', 'amal hassan']);
+  assert.equal(r.code, 0, r.err);
+  assert.ok(r.calls.some((c) => c.path === '/projects/ird/available_assignees'));
+  assert.equal(JSON.parse(r.writes[0].replace(/^POST \S+ /, ''))._links.assignee.href, '/api/v3/users/9');
+  const env = op(['create', '--subject', 'x'], { TRACKER_ASSIGNEE: 'Omar' });
+  assert.equal(JSON.parse(env.writes[0].replace(/^POST \S+ /, ''))._links.assignee.href, '/api/v3/users/4');
+  const flag = op(['create', '--subject', 'x', '--assignee', 'Amal Hassan'], { TRACKER_ASSIGNEE: 'Omar' });
+  assert.equal(JSON.parse(flag.writes[0].replace(/^POST \S+ /, ''))._links.assignee.href, '/api/v3/users/9', 'the flag wins');
+  const none = op(['create', '--subject', 'x']);
+  assert.equal(JSON.parse(none.writes[0].replace(/^POST \S+ /, ''))._links.assignee, undefined, 'unassigned by default');
+  assert.ok(!none.calls.some((c) => c.path.endsWith('/available_assignees')));
+  const dry = op(['create', '--subject', 'x', '--assignee', 'Omar'], { TRACKER_DRY_RUN: '1' });
+  assert.deepEqual(dry.writes, []);
+  assert.match(dry.err, /DRY RUN: POST \/projects\/ird\/work_packages .* assignee=Omar /);
+});
+
+test('openproject: assign sets the assignee with the lock version', () => {
+  const r = op(['assign', '42', 'OMAR']);
+  assert.equal(r.code, 0, r.err);
+  assert.deepEqual(r.writes, ['PATCH /work_packages/42 {"lockVersion":3,"_links":{"assignee":{"href":"/api/v3/users/4"}}}']);
+  assert.equal(r.out, '#42 -> assignee OMAR\n');
+  const dry = op(['assign', '42', 'Omar'], { TRACKER_DRY_RUN: '1' });
+  assert.deepEqual(dry.writes, []);
+  assert.match(dry.err, /DRY RUN: PATCH \/work_packages\/42/);
+});
+
+test('openproject: an unknown assignee is refused clearly and nothing is written', () => {
+  for (const args of [['assign', '42', 'Nobody'], ['create', '--subject', 'x', '--assignee', 'Nobody']]) {
+    const r = op(args);
+    assert.notEqual(r.code, 0, args.join(' '));
+    assert.match(r.err, /no user named 'Nobody' can be assigned in project ird/);
+    assert.deepEqual(r.writes, [], args.join(' '));
+  }
 });
 
 test('openproject: list json has the shape every adapter prints', () => {
