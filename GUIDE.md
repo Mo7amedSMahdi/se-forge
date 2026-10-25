@@ -648,6 +648,7 @@ secret, so they are shared with the whole team:
 The adapter looks in this order and takes the first key it finds: the `OPENPROJECT_API_KEY` environment variable,
 the macOS Keychain, the Linux keyring, the file. The key reaches `curl` on a file descriptor, never in a command's
 arguments or in any output. `forge doctor` says which of the four holds it (by name, never the key).
+Agents can never read the key (`[openproject:key]`, `[keychain:password]`); `forge tracker` is the only route.
 
 **3. Overrides.** A variable already set in the environment wins over `project.json`, for one command or one
 machine: `OPENPROJECT_URL`, `OPENPROJECT_PROJECT`, `OPENPROJECT_BOARDS` (`"issues=109,frontend=110"`),
