@@ -24,6 +24,9 @@ A project pins an exact version in its `project.json`; `forge upgrade --to <vers
   groups by status and no card moves, and `forge doctor` says so.
 - `forge init --tracker openproject`; `project.tracker` is validated (gitlab, github or openproject); `forge doctor`
   checks curl, jq, the URL and project settings, the key's source and the boards.
+- **Assignees:** `forge tracker create … --assignee "<name>"` (else `TRACKER_ASSIGNEE`) and `forge tracker assign <id>
+  "<name>"`, on OpenProject (the user's name, checked against the project's assignable users), GitLab and GitHub
+  (the username). Tickets stay unassigned unless the owner names someone.
 - **Agents cannot read the OpenProject key** (`[openproject:key]`): not its file, script, keyring entry or
   `OPENPROJECT_API_KEY`. Keyring password prints for any service (`[keychain:password]`), keychain dumps and env dumps
   through `/proc/*/environ`, `ps e`, `declare -p` or interpreters are denied too.

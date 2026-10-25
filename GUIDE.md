@@ -664,6 +664,9 @@ does not have, or the key cannot see, is named in one line and skipped. `forge t
 the status, then moves the card on **every** configured board it sits on. `create --board <name> --column <column>`
 puts the new card on that board.
 
+**Assignees.** `create --assignee "<name>"` (or `TRACKER_ASSIGNEE`) and `forge tracker assign <id> "<name>"` take the
+user's name as OpenProject shows it, in any case; a name the project cannot assign is refused. Unassigned otherwise.
+
 **No boards.** Without `boards` or `board` the tracker runs in status mode: `list board` groups the open work
 packages by status, `status` changes only the status (no card moves), and `create --column` sets the status of that
 name when one exists. `forge doctor` reports "no boards configured, status mode" as information, not a problem.

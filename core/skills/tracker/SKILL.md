@@ -22,18 +22,20 @@ forge tracker list board                           # each status with its open t
 forge tracker list status "In Progress"            # also: list open, list ready, list json
 forge tracker statuses                             # how the tracker spells its statuses and types
 forge tracker create --subject "[Backend request] …" --source ai --description-file body.md \
-  --type Task --status Todo --relates <ticket> --board issues --column Pending
+  --type Task --status Todo --relates <ticket> --board issues --column Pending [--assignee "<name>"]
+forge tracker assign <id> "<name>"                 # OpenProject: the user's name; GitLab/GitHub: the username
 forge tracker status <id> "In Testing" --comment "<branch, SHA, what to test, known gaps>"
 forge tracker comment <id> "<text>"                # a longer one: --file <file>
 ```
 
 ## Rules
 - What agents raise is titled `[Backend request] …` or `[Story conflict] …`, carries `--source ai` (decision 46), is a Task in status **Todo** with nobody assigned, relates to the feature ticket (`--relates`), and goes to the **Pending** column of the Issues board.
+- Tickets stay unassigned unless the owner names an assignee: only then pass `--assignee "<name>"` on create (or set `TRACKER_ASSIGNEE`), or run `assign`. An unknown name fails with its reason; report it, never guess another user.
 - Statuses such as **In Testing** change on the lead's word that review and QA are through, never earlier, and each change carries a comment naming the branch, the SHA, what to test and the known gaps.
 - Unsure what a create would send: run it once with `TRACKER_DRY_RUN=1` first.
 - When the command fails, report its stderr line word for word. Never fall back to your own `curl`, `gh` or `glab` call with a token.
 - The `tracker-clerk` agent does single operations on haiku; when it has to write Task bodies from an alignment report, spawn it with `model=sonnet`.
-- A new tracker is a new `core/tracker/adapters/<name>.sh` beside `gitlab.sh`: it defines the seven `tr_*` functions (`get`, `list`, `create`, `status`, `comment`, `statuses`, `ready`), may use the helpers in `core/tracker/lib.sh`, keeps credentials out of arguments and output, and lists the variable names it reads at the top.
+- A new tracker is a new `core/tracker/adapters/<name>.sh` beside `gitlab.sh`: it defines the eight `tr_*` functions (`get`, `list`, `create`, `status`, `comment`, `statuses`, `ready`, `assign`) and honours `tk_assignee` on create, may use the helpers in `core/tracker/lib.sh`, keeps credentials out of arguments and output, and lists the variable names it reads at the top.
 
 ## Done when
 - the tracker command succeeded (or its stderr line is reported verbatim);
